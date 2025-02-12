@@ -21,4 +21,4 @@ Pkg.add("LinearAlgebra")        # common and useful linear algebra operations
 Pkg.add("Gadfly")               # a system for plotting and visualization 
 Pkg.add("Compose")              # a declarative vector graphics system written in Julia
 Pkg.add("ColorSchemes")         # a set of pre-defined ColorSchemes
-Pkg.add("Jchemo")               # Chemometrics and machine learning on high-dimensional data
+Pkg.add("Jchemo")               # Chemometrics and machine learning on high-dimensional data       

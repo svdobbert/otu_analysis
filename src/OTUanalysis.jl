@@ -1,4 +1,4 @@
-module OTUanalysis  # Start-Module
+module OTUanalysis
 
 using Arrow
 using CategoricalArrays
@@ -20,4 +20,4 @@ using Compose
 using ColorSchemes           
 using Jchemo 
 
-end # End-Module
+end # module OTUanalysis
