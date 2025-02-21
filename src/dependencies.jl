@@ -26,4 +26,5 @@ Pkg.add("MLJ")                          # a Machine Learning Framework for Julia
 Pkg.add("MLJBase")   
 Pkg.add("MLJTuning")   
 Pkg.add("MLJModels")   
-Pkg.add("PartialLeastSquaresRegressor") # package with Partial Least Squares Regressor methods
+Pkg.add("Loess")  
+Pkg.add("Cairo")

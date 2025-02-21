@@ -21,23 +21,30 @@ using Jchemo
 using DataFrames
 using StatsBase
 using CSV
+using Loess
+using Cairo
 
 include("constants.jl")
 include("load-data.jl")
 include("check-data.jl")
 include("restructure-data.jl")
+include("plot.jl")
 include("plsr.jl")
 
 # define parameters
 env_var = "AT"
 otu_id = "OTU0001"
-span = 7*24
+span = 365*24
 step = 0.1
 date_col = "datetime"
 id_col = "OTU_ID"
 sampling_date_west = "23.07.2023 11:00"
 sampling_date_east = "22.07.2023 11:00"
 season = "all"
+smooth = 0.3
+plot = true
+safe_pdf = false
+safe_png = false
 
 # load environmental data
 df_at = read_csv("./data/AT15_Data_2009_2023_fixed.csv")
@@ -62,6 +69,7 @@ df_dna = read_csv("./data/clr_sorted_DNA_OTU_PLSR_final.csv")
 df_vdna = read_csv("./data/clr_sorted_cDNA_OTU_PLSR_final.csv")
 
 
-df_sel_ratio = get_selectivity_ratio(df_env, df_dna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season)
+df_sel_ratio = get_selectivity_ratio(df_env, df_dna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png)
 
+CSV.write("./$(env_var)_$(otu_id)_$(span)_$(season).csv", df_sel_ratio)
 end # module OTUanalysis

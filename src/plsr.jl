@@ -3,7 +3,7 @@ function remove_constant_columns(df::DataFrame)
     return df[:, non_constant_columns]
 end
 
-function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all")
+function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, save_pdf::Bool=false, save_png::Bool=false)
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe.
 
@@ -18,10 +18,14 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, otu_id::String,
     - sampling_date_west::String: Date at which the samples were taken in the west.
     - sampling_date_east::String: Date at which the samples were taken in the west.
     - env_var::String: environmental variable to process (either "AT", "ST", "SM")
-    - season::String: The meteorolocical season which should be included. Can also be "all" to select all seasons.
+    - season::String: Optional, the meteorolocical season which should be included. Includes all seasons if not set.
+    - smooth::Number: Optional, level of smoothing (between 0 and 1), default is 0.2.
+    - plot::Bool: Otional, specifies if a plot should be returned.
+    - save_pdf::Bool: Otional, specifies if the plot should be safed as pdf
+    - save_png::Bool: Otional, specifies if the plot should be safed as png
 
     Returns:
-    - DataFrame: DataFrame containing selectivity ratios (sel_ratio) with significance (sign), p-value (pval), and environmental value (x).
+    - DataFrame: DataFrame containing selectivity ratios (sel_ratio) with significance (significance), p-value (pval), environmental value (x), and smoothed selectivity ratio for plotting (sel_ratio_smooth).
     """
 
     df_processed = prepare_data(df, df_otu, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season)
@@ -79,40 +83,66 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, otu_id::String,
 
         println("Remaining features after selection for fold $fold_idx: ", sum(keep_features))
 
-        global nlv_value = min(3, size(X_train, 1) - 1)  
+        global nlv_value = min(3, size(X_train, 1) - 1)
         if nlv_value < 1
             error("Not enough samples for PLS (nlv = $nlv_value).")
         end
 
-        # Fit the PLS model (ensure it works with reduced features)
-        pls_model = Jchemo.plswold(X_train_selected, y_train, nlv=nlv_value, scal=true)
+        # Fit the PLS model 
+        pls_model = Jchemo.plssimp(X_train_selected, y_train, nlv=nlv_value, scal=true)
 
-        Wx = pls_model.W
-        feature_variance = var(X_train_selected, dims=1)
+        pred = Jchemo.predict(pls_model, X_train_selected).pred
+        println("RMSE for fold $fold_idx: ", rmsep(pred, y_train))
 
-        # Avoid division by zero
-        feature_variance[feature_variance.==0] .= 1
+        TT = pls_model.TT
+        V = pls_model.V
+        residuals = residreg(pred, y_train)
 
-        explained_variance = sum(Wx .^ 2, dims=2)
-        selectivity_ratios = explained_variance ./ feature_variance'
+        # Total variance in X
+        total_variance_X = sum(var(X_train_selected, dims=1))
 
-        sign_of_loadings = sign.(Wx)
-        coefficient_signs = sign.(mean(sign_of_loadings, dims=2))
+        # Explained variance ratio per LV
+        explained_variance_ratio = TT / total_variance_X
 
-        # Create a vector of selectivity ratios for all features (matching original feature set)
+        # Explained variance per feature
+        explained_variance_per_feature = vec(sum(V .^ 2 .* TT', dims=2))
+
+        # Residual variance per feature
+        residual_variance = vec(var(X_train_selected, dims=1)) .- explained_variance_per_feature
+
+        # Selectivity ratio
+        residual_variance[residual_variance.==0] .= 1 # Avoid division by zero
+        selectivity_ratios = explained_variance_per_feature ./ residual_variance
+
+        # Compute regression coefficients B
+        B = pls_model.R * pls_model.C'
+
+        # Get the sign of the regression coefficients 
+        coefficient_signs = sign.(B[:, 1])
+
+        # Create a vector for all features (matching original feature set)
         selectivity_ratios_full = fill(NaN, n_features_original)
         coefficient_signs_full = fill(NaN, n_features_original)
 
+        #         # optional check of dimensions
+        #         println("Shape of V: ", size(V))  
+        #         println("Shape of TT: ", size(TT))  
+        # println("Shape of explained_variance_per_feature: ", size(explained_variance_per_feature))
+        # println("Shape of residual_variance: ", size(residual_variance))
+        #         println("Shape of selectivity_ratios: ", size(selectivity_ratios))
+        # println("Shape of keep_features: ", size(keep_features))
+        # println("Number of selected features: ", sum(keep_features))
+
         # Assign selectivity ratios to the selected features
-        selectivity_ratios_full[keep_features.==1] .= selectivity_ratios
-        coefficient_signs_full[keep_features.==1] .= coefficient_signs
+        selectivity_ratios_full[keep_features] .= vec(selectivity_ratios)
+        coefficient_signs_full[keep_features] .= vec(coefficient_signs)
 
         # Store the selectivity ratios for this fold
         push!(coefficient_signs_all_folds, coefficient_signs_full)
         push!(selectivity_ratios_all_folds, selectivity_ratios_full)
     end
 
-    # Concatenate the selectivity ratios across folds (they are now aligned with the same features)
+    # Concatenate the selectivity ratios across folds 
     selectivity_ratios_matrix = hcat(selectivity_ratios_all_folds...)
     println("Number of NaN values in the selectivity ratios matrix: ", count(isnan, selectivity_ratios_matrix))
     selectivity_ratios_df = DataFrame(selectivity_ratios_matrix, :auto)
@@ -122,36 +152,64 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, otu_id::String,
     coefficient_signs_mean = sign.(mean(coefficient_signs_matrix, dims=2))
 
     # Step 2: Permutation test for p-values
-    p_values = zeros(n_features)
+    permuted_ratios_all = zeros(n_features, n_permutations)
 
-    for feature_idx in 1:n_features
-        permuted_ratios = Float64[]
+    for perm_idx in 1:n_permutations
+        permuted_y = shuffle(y)
 
-        for _ in 1:n_permutations
-            permuted_y = shuffle(y)
+        # Fit PLS model on permuted data
+        pls_model_perm = Jchemo.plssimp(X, permuted_y, nlv=nlv_value, scal=true)
 
-            pls_model_perm = Jchemo.plswold(X, permuted_y, nlv=nlv_value, scal=true)
+        TT_perm = pls_model_perm.TT
+        V_perm = pls_model_perm.V
 
-            Wx_perm = pls_model_perm.W
-            explained_variance_perm = sum(Wx_perm .^ 2, dims=2)
-            feature_variance_perm = var(X, dims=1)
+        # Total variance in X 
+        total_variance_X = sum(var(X, dims=1))
 
-            permuted_selectivity_ratios = explained_variance_perm ./ feature_variance_perm'
+        # Explained variance ratio per LV (latent variable)
+        explained_variance_ratio = TT_perm ./ total_variance_X
 
-            push!(permuted_ratios, mean(permuted_selectivity_ratios))  # Take mean across folds
-        end
-        # Calculate p-value: Proportion of permutations greater than or equal to the actual value
-        p_values[feature_idx] = mean(abs.(permuted_ratios) .>= abs(selectivity_ratios_mean[feature_idx]))
+        # Explained variance per feature (sum across LV components)
+        explained_variance_per_feature = sum(V_perm .^ 2 .* TT_perm', dims=2)
+
+        # Feature variance (based on original X)
+        feature_variance = var(X, dims=1)
+
+        # Residual variance per feature
+        residual_variance = vec(feature_variance) .- explained_variance_per_feature
+
+        # Avoid division by zero in residual variance
+        residual_variance[residual_variance.==0] .= 1
+
+        # Selectivity ratio
+        permuted_selectivity_ratios = explained_variance_per_feature ./ residual_variance
+
+        # Store the permuted selectivity ratios for this permutation
+        permuted_ratios_all[:, perm_idx] .= vec(permuted_selectivity_ratios)
     end
 
+    # Compute p-values
+    p_values = [mean(abs.(permuted_ratios_all[i, :]) .>= abs(selectivity_ratios_mean[i])) for i in 1:n_features]
+
     selectivity_ratios_with_sign = vec(coefficient_signs_mean .* selectivity_ratios_mean)
+
+    x = parse.(Float64, env_values)
+    println(typeof(selectivity_ratios_with_sign))
+    model = loess(x, selectivity_ratios_with_sign, span=smooth)
+    selectivity_ratios_smooth = Loess.predict(model, x)
 
     plsr_result = DataFrame(
         sel_ratio=vec(selectivity_ratios_with_sign),
         p_val=p_values,
-        sign=p_values .< 0.1,
-        x=env_values
+        significance=p_values .< 0.1,
+        x=x,
+        sel_ratio_smooth=selectivity_ratios_smooth
     )
+
+    if plot
+        p = plot_selectivity_ratio(plsr_result, otu_id, span, env_var, season, safe_pdf, safe_png)
+        p
+    end
 
     return plsr_result
 end

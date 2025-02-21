@@ -26,3 +26,7 @@ Manifest.toml
 # Large data files
 *.csv
 data/
+
+# Output files and literature
+*.docx
+*.pdf
