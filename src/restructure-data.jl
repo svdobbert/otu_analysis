@@ -138,7 +138,15 @@ function prepare_data(df_env::DataFrame, df_otu::DataFrame, otu_id::String, span
 
     df_frequencies = vcat(df_west_frequencies, df_east_frequencies)
 
-    selected_row = df_otu[df_otu[!, Symbol(id_col)].==otu_id, :]
+    # normalize OTU-data
+    Y = select(df_otu, Not(Symbol(id_col)))
+    Y = Matrix{Float64}(Y)
+    std_Y = std(Y, dims=1)
+    Y = (Y .- mean(Y, dims=1)) ./ std_Y
+    df_Y = DataFrame(Y, :auto)
+    df_Y[!, Symbol(id_col)] = df_otu[!, Symbol(id_col)]
+
+    selected_row = df_Y[df_Y[!, Symbol(id_col)].==otu_id, :]
 
     if nrow(selected_row) > 1
         throw(ErrorException("There is more than one row with the given ID: $otu_id"))
