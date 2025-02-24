@@ -45,13 +45,14 @@ function plot_selectivity_ratio(df::DataFrame, otu_id::String, span::Number, env
         layer(
             df_clean,
             x=:x,
-            y=:sel_ratio_smooth,
+            y=:explained_var_smooth,
             color=:significance,
             Geom.point
         ),
-        Scale.color_discrete_manual(palette_sign...),
+        Coord.Cartesian(ymin=-1,ymax=1),
+        Scale.color_discrete_manual(palette_sign..., levels=[false, true]),
         Guide.xlabel(x_label),
-        Guide.ylabel("Selectivity Ratio (smoothed)"),
+        Guide.ylabel("Selectivity Ratio (smoothed and scaled)"),
         Guide.title(title),
         Theme(background_color="white",
             highlight_width=0mm)
