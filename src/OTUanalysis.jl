@@ -35,7 +35,7 @@ include("plsr.jl")
 env_var = "SM"
 otu_id = "OTU0001"
 span = 365*24
-step = 0.1
+step = 0.01
 date_col = "datetime"
 id_col = "OTU_ID"
 sampling_date_west = "23.07.2023 11:00"
@@ -70,5 +70,7 @@ df_vdna = read_csv("./data/clr_sorted_cDNA_OTU_PLSR_final.csv")
 
 
 df_sel_ratio = get_selectivity_ratio(df_env, df_dna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png)
+
+CSV.write("./$(env_var)_$(otu_id)_$(span)_$(season).csv", df_sel_ratio)
 
 end # module OTUanalysis

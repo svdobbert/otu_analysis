@@ -36,10 +36,10 @@ function plot_selectivity_ratio(df::DataFrame, otu_id::String, span::Number, env
     if season == "all"
         season_title = ""
     else
-        season_title = "season = $season"
+        season_title = ", season = $season"
     end
 
-    title = "$otu_id, for $span hours, $season_title"
+    title = "$otu_id, for $span hours $season_title"
 
     p = Gadfly.plot(
         layer(
