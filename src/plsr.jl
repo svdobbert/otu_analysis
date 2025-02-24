@@ -58,7 +58,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, otu_id::String,
     n_samples = size(X, 1)
     n_permutations = 1000  # Number of permutations
     n_features = size(X, 2)
-    subset_size = round(Int, 0.8 * n_samples)
+    subset_size = round(Int, 0.9 * n_samples)
     folds = [rand(1:n_samples, subset_size) for _ in 1:n_folds]
 
     # Step 1: Calculate actual selectivity ratios
@@ -208,7 +208,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, otu_id::String,
 
     if plot
         p = plot_selectivity_ratio(plsr_result, otu_id, span, env_var, season, plot_pdf, plot_png)
-        p
+        display(p)
     end
 
     return plsr_result
