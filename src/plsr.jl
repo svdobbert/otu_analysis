@@ -207,7 +207,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, otu_id::String,
     )
 
     if plot
-        p = plot_selectivity_ratio(plsr_result, otu_id, span, env_var, season, safe_pdf, safe_png)
+        p = plot_selectivity_ratio(plsr_result, otu_id, span, env_var, season, plot_pdf, plot_png)
         p
     end
 
