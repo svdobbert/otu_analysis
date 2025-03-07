@@ -32,16 +32,16 @@ include("plot.jl")
 include("plsr.jl")
 
 # define parameters
-env_var = "SM"
-otu_id = "OTU0001"
+env_var = "ST"
+otu_id = "OTU1000"
 span = 365*24
-step = 0.01
+step = 0.1
 date_col = "datetime"
-id_col = "OTU_ID"
+id_col = "OTU"
 sampling_date_west = "23.07.2023 11:00"
 sampling_date_east = "22.07.2023 11:00"
 season = "all"
-smooth = 0.3
+smooth = 0.5
 plot = true
 plot_pdf = false
 plot_png = false
@@ -68,7 +68,6 @@ check_environmental_input(df_sm, "datetime", "15.09.2009 01:00", "23.07.2023 11:
 df_dna = read_csv("./data/clr_sorted_DNA_OTU_PLSR_final.csv")
 df_vdna = read_csv("./data/clr_sorted_cDNA_OTU_PLSR_final.csv")
 cdna = true
-
 
 df_sel_ratio = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png)
 

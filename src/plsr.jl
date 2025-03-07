@@ -50,16 +50,18 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     std_y = std_y == 0 ? 1 : std_y  # Prevent division by zero for y
     y = (y .- mean(y, dims=1)) ./ std_y
 
+
+
     # Ensure no NaNs or Infs
     X[isnan.(X).|isinf.(X)] .= 0
     y[isnan.(y).|isinf.(y)] .= 0
 
     # Cross Validation parameters
-    n_folds = 10
+    n_folds = 100000
     n_samples = size(X, 1)
-    n_permutations = 1000  # Number of permutations
+    n_permutations = 10000  # Number of permutations
     n_features = size(X, 2)
-    subset_size = round(Int, 0.9 * n_samples)
+    subset_size = round(Int, 0.8 * n_samples)
     folds = [rand(1:n_samples, subset_size) for _ in 1:n_folds]
 
     # Step 1: Calculate actual selectivity ratios
@@ -150,7 +152,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     selectivity_ratios_mean = [mean(skipmissing(row)) for row in eachrow(selectivity_ratios_df)]
 
     coefficient_signs_matrix = hcat(coefficient_signs_all_folds...)
-    coefficient_signs_mean = sign.(mean(coefficient_signs_matrix, dims=2))
+    coefficient_signs_mean = sign.(median(coefficient_signs_matrix, dims=2))
 
     # Step 2: Permutation test for p-values
     permuted_ratios_all = zeros(n_features, n_permutations)
@@ -195,10 +197,10 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     selectivity_ratios_with_sign = vec(coefficient_signs_mean .* selectivity_ratios_mean)
 
     x = parse.(Float64, env_values)
-    println(typeof(selectivity_ratios_with_sign))
     model = loess(x, selectivity_ratios_with_sign, span=smooth)
     selectivity_ratios_smooth = Loess.predict(model, x)
 
+  
     plsr_result = DataFrame(
         sel_ratio=vec(selectivity_ratios_with_sign),
         p_val=p_values,
@@ -206,6 +208,11 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
         x=x,
         sel_ratio_smooth=selectivity_ratios_smooth
     )
+
+    plsr_result.explained_var = plsr_result.sel_ratio ./ (abs.(plsr_result.sel_ratio) .+ 1)
+
+    model = loess(x, plsr_result.explained_var, span=smooth)
+    plsr_result.explained_var_smooth = Loess.predict(model, x)
 
     if plot
         p = plot_selectivity_ratio(plsr_result, otu_id, span, env_var, season, plot_pdf, plot_png)
