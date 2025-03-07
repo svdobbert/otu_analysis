@@ -3,13 +3,14 @@ function remove_constant_columns(df::DataFrame)
     return df[:, non_constant_columns]
 end
 
-function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, save_pdf::Bool=false, save_png::Bool=false)
+function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, save_pdf::Bool=false, save_png::Bool=false)
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe.
 
     Parameters:
     - df::DataFrame: DataFrame containing environmental data
     - df_otu::DataFrame: DataFrame containing otu data
+    - cdna::Bool: Is the data cDNA? 
     - otu_id::String: ID for the OTUs.
     - span::Number: span (in hours) before the sampling date to which the DataFrame should be trunctuated.  
     - step:: Number: step by which the environmental data should be counted.   
@@ -210,6 +211,14 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, otu_id::String,
         p = plot_selectivity_ratio(plsr_result, otu_id, span, env_var, season, plot_pdf, plot_png)
         display(p)
     end
+
+    if cdna
+        cdna_indicator = "c"
+    else
+        cdna_indicator = ""
+    end
+
+    CSV.write("./$(env_var)_$(otu_id)$(cdna_indicator)_$(span)_$(season).csv", plsr_result)
 
     return plsr_result
 end
