@@ -65,12 +65,10 @@ check_environmental_input(df_st, "datetime", "15.09.2009 01:00", "23.07.2023 11:
 check_environmental_input(df_sm, "datetime", "15.09.2009 01:00", "23.07.2023 11:00")
 
 # load otu data
-df_cdna = read_csv("./data/rohdaten_Madlene.CSV")
-df_dna = read_csv("./data/clr_sorted_cDNA_OTU_PLSR_final.csv")
+df_dna = read_csv("./data/clr_sorted_DNA_OTU_PLSR_final.csv")
+df_vdna = read_csv("./data/clr_sorted_cDNA_OTU_PLSR_final.csv")
+cdna = true
 
-
-df_sel_ratio = get_selectivity_ratio(df_env, df_cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png)
-
-CSV.write("./$(env_var)_$(otu_id)_$(span)_$(season).csv", df_sel_ratio)
+df_sel_ratio = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png)
 
 end # module OTUanalysis
