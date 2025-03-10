@@ -24,7 +24,7 @@ end
 
 function is_in_season(date::DateTime, season::String)
     """
-    Calculates the meteorolocical season from dates and checks if it is in season.
+    Calculates the meteorolocical season from dates.
 
     Parameters:
     - date::DateTime: A vector of dates.
@@ -42,14 +42,14 @@ function is_in_season(date::DateTime, season::String)
            (season == "all" && month in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
 end
 
-function count_frequencies(df::DataFrame, date_col::String, range_values)
+function count_frequencies_range(df::DataFrame, date_col::String, range_values)
     """
-    Counts frequencies for values above specific values in a range
+    Counts frequencies around specific values in a range
 
     Parameters:
     - df::DataFrame: DataFrame with original values.
     - datecol::String: Name of the column containing the datetime.
-    - range_values: Vector containing values above which values are counted.
+    - range_values: Vector containing values around which values are counted.
 
     Returns:
     - DataFrame: The processed DataFrame, containing values as columns and frequencies for each site as rows.
@@ -75,13 +75,46 @@ function count_frequencies(df::DataFrame, date_col::String, range_values)
     return df_counts
 end
 
-function prepare_data(df_env::DataFrame, df_otu::DataFrame, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all")
+function count_frequencies(df::DataFrame, date_col::String, range_values)
     """
-    Trunctuates a Dataframe with a datetime column to a specific sub-dataframe.
+    Counts frequencies above/below specific values in a range
+
+    Parameters:
+    - df::DataFrame: DataFrame with original values.
+    - datecol::String: Name of the column containing the datetime.
+    - range_values: Vector containing values above/below which values are counted.
+
+    Returns:
+    - DataFrame: The processed DataFrame, containing values as columns and frequencies for each site as rows.
+    """
+
+    df_counts = DataFrame()
+
+    for col in names(df)
+        if col != date_col
+            counts = [count(x -> !ismissing(x) && (value ≥ 0 ? x ≥ value : x ≤ value), df[!, col])
+                      for value in range_values]
+            df_counts = vcat(df_counts, DataFrame(counts', :auto))
+        end
+    end
+
+    range_names = [Symbol("$(range_values[i])") for i in 1:length(range_values)]
+
+    rename!(df_counts, range_names)
+
+    df_counts.position = names(select(df, Not(Symbol(date_col))))
+
+    return df_counts
+end
+
+function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", countRange::Bool=true, saveFrequencies::Bool=true)
+    """
+    Trunctuates a Dataframe with a datetime column to a specific sub-dataframe and counts frequencies for a following plsr analysis.
 
     Parameters:
     - df_env::DataFrame: DataFrame containing environmental data
     - df_otu::DataFrame: DataFrame containing otu data
+    - cdna::Bool: Is the data cDNA? 
     - otu_id::String: ID for the OTUs.
     - span::Number: span (in hours) before the sampling date to which the DataFrame should be trunctuated.  
     - step:: Number: step by which the environmental data should be counted.   
@@ -91,6 +124,8 @@ function prepare_data(df_env::DataFrame, df_otu::DataFrame, otu_id::String, span
     - sampling_date_east::String: Date at which the samples were taken in the west.
     - env_var::String: environmental variable to process (either "AT", "ST", "SM")
     - season::String: The meteorolocical season which should be included. Can also be "all" to select all seasons.
+    - countRange::Bool: Should the frequencies be counted as range around the values or above/below the values.
+    - saveFrequencies::Bool: Should the frequencies table be safed.
 
     Returns:
     - DataFrame: The processed DataFrame.
@@ -133,8 +168,13 @@ function prepare_data(df_env::DataFrame, df_otu::DataFrame, otu_id::String, span
         throw(ErrorException("There are now hours within the selected span and season: $season"))
     end
 
-    df_east_frequencies = count_frequencies(df_east_trunctuated, date_col, range_values)
-    df_west_frequencies = count_frequencies(df_west_trunctuated, date_col, range_values)
+    if countRange
+        df_east_frequencies = count_frequencies_range(df_east_trunctuated, date_col, range_values)
+        df_west_frequencies = count_frequencies_range(df_west_trunctuated, date_col, range_values)
+    else
+        df_east_frequencies = count_frequencies(df_east_trunctuated, date_col, range_values)
+        df_west_frequencies = count_frequencies(df_west_trunctuated, date_col, range_values)
+    end
 
     df_frequencies = vcat(df_west_frequencies, df_east_frequencies)
 
@@ -169,6 +209,16 @@ function prepare_data(df_env::DataFrame, df_otu::DataFrame, otu_id::String, span
     df_otu_selected.position = names(select(df_otu, Not(Symbol(id_col))))
 
     df_plsr_input = innerjoin(df_frequencies, df_otu_selected, on=:position)
+
+    if cdna
+        cdna_indicator = "c"
+    else
+        cdna_indicator = ""
+    end
+
+    if saveFrequencies
+        CSV.write("./$(env_var)_$(otu_id)$(cdna_indicator)_$(span)_$(season)_frequencies.csv", df_plsr_input)
+    end
 
     return df_plsr_input
 end
