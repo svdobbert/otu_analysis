@@ -16,8 +16,8 @@ using Missings
 using LinearAlgebra
 using Gadfly
 using Compose
-using ColorSchemes           
-using Jchemo 
+using ColorSchemes
+using Jchemo
 using DataFrames
 using StatsBase
 using CSV
@@ -33,11 +33,11 @@ include("plsr.jl")
 
 # define parameters
 env_var = "ST"
-otu_id = "OTU1000"
-span = 365*24
+otu_ids = ["OTU1000", "OTU1001"]
+span = 365 * 24
 step = 0.1
 date_col = "datetime"
-id_col = "OTU"
+id_col = "OTU_ID"
 sampling_date_west = "23.07.2023 11:00"
 sampling_date_east = "22.07.2023 11:00"
 season = "all"
@@ -45,6 +45,8 @@ smooth = 0.5
 plot = true
 plot_pdf = false
 plot_png = false
+countRange = false
+saveFrequencies = true
 
 # load environmental data
 df_at = read_csv("./data/AT15_Data_2009_2023_fixed.csv")
@@ -69,6 +71,9 @@ df_dna = read_csv("./data/clr_sorted_DNA_OTU_PLSR_final.csv")
 df_vdna = read_csv("./data/clr_sorted_cDNA_OTU_PLSR_final.csv")
 cdna = true
 
-df_sel_ratio = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png)
+results = Dict()
+for otu_id in otu_ids
+    results[otu_id] = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies)
+end
 
 end # module OTUanalysis

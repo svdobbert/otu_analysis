@@ -3,7 +3,7 @@ function remove_constant_columns(df::DataFrame)
     return df[:, non_constant_columns]
 end
 
-function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, save_pdf::Bool=false, save_png::Bool=false)
+function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, plot_pdf::Bool=false, plot_png::Bool=false, countRange::Bool=true, saveFrequencies::Bool=true)
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe.
 
@@ -22,14 +22,16 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     - season::String: Optional, the meteorolocical season which should be included. Includes all seasons if not set.
     - smooth::Number: Optional, level of smoothing (between 0 and 1), default is 0.2.
     - plot::Bool: Otional, specifies if a plot should be returned.
-    - save_pdf::Bool: Otional, specifies if the plot should be safed as pdf
-    - save_png::Bool: Otional, specifies if the plot should be safed as png
+    - plot_pdf::Bool: Otional, specifies if the plot should be safed as pdf
+    - plot_png::Bool: Otional, specifies if the plot should be safed as png
+    - countRange::Bool: Should the frequencies be counted as range around the values or above/below the values.
+    - saveFrequenciese::Bool: Should the frequencies table be safed.
 
     Returns:
     - DataFrame: DataFrame containing selectivity ratios (sel_ratio) with significance (significance), p-value (pval), environmental value (x), and smoothed selectivity ratio for plotting (sel_ratio_smooth).
     """
 
-    df_processed = prepare_data(df, df_otu, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season)
+    df_processed = prepare_data(df, df_otu, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, countRange, saveFrequencies)
     df_cleaned = dropmissing(select(df_processed, Not(:position)))
 
     X = remove_constant_columns(df_cleaned[:, Not(:values)])
@@ -57,7 +59,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     y[isnan.(y).|isinf.(y)] .= 0
 
     # Cross Validation parameters
-    n_folds = 100000
+    n_folds = 10000
     n_samples = size(X, 1)
     n_permutations = 10000  # Number of permutations
     n_features = size(X, 2)
