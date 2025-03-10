@@ -59,7 +59,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     y[isnan.(y).|isinf.(y)] .= 0
 
     # Cross Validation parameters
-    n_folds = 10000
+    n_folds = 100000
     n_samples = size(X, 1)
     n_permutations = 10000  # Number of permutations
     n_features = size(X, 2)
@@ -216,8 +216,12 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     model = loess(x, plsr_result.explained_var, span=smooth)
     plsr_result.explained_var_smooth = Loess.predict(model, x)
 
+    model_input = plsr_result[plsr_result.significance .== true, :]
+    model = loess(model_input.x, model_input.explained_var, span=smooth)
+    plsr_result.explained_var_smooth_sig = Loess.predict(model, x)
+
     if plot
-        p = plot_selectivity_ratio(plsr_result, otu_id, span, env_var, season, plot_pdf, plot_png)
+        p = plot_selectivity_ratio(plsr_result, cdna, otu_id, span, env_var, season, plot_pdf, plot_png)
         display(p)
     end
 
