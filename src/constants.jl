@@ -1,1 +1,1 @@
-palette_sign = ["#f3904c", "#c03410"]
+palette_sign = ["#ffab68", "#c03410"]

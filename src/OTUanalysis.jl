@@ -33,7 +33,7 @@ include("plsr.jl")
 
 # define parameters
 env_var = "ST"
-otu_ids = ["OTU1000", "OTU1001"]
+otu_ids = ["OTU0001"]
 span = 365 * 24
 step = 0.1
 date_col = "datetime"
@@ -41,10 +41,10 @@ id_col = "OTU_ID"
 sampling_date_west = "23.07.2023 11:00"
 sampling_date_east = "22.07.2023 11:00"
 season = "all"
-smooth = 0.5
+smooth = 0.15
 plot = true
-plot_pdf = false
-plot_png = false
+plot_pdf = true
+plot_png = true
 countRange = false
 saveFrequencies = true
 
@@ -68,8 +68,8 @@ check_environmental_input(df_sm, "datetime", "15.09.2009 01:00", "23.07.2023 11:
 
 # load otu data
 df_dna = read_csv("./data/clr_sorted_DNA_OTU_PLSR_final.csv")
-df_vdna = read_csv("./data/clr_sorted_cDNA_OTU_PLSR_final.csv")
-cdna = true
+df_cdna = read_csv("./data/clr_sorted_cDNA_OTU_PLSR_final.csv")
+cdna = false
 
 results = Dict()
 for otu_id in otu_ids
