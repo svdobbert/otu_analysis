@@ -23,6 +23,7 @@ using StatsBase
 using CSV
 using Loess
 using Cairo
+using Dates
 
 include("constants.jl")
 include("load-data.jl")
@@ -30,10 +31,11 @@ include("check-data.jl")
 include("restructure-data.jl")
 include("plot.jl")
 include("plsr.jl")
+include("postprocessing.jl")
 
 # define parameters
 env_var = "ST"
-otu_ids = ["OTU0001"]
+otu_ids = ["OTU0001", "OTU0002", "OTU0003"]
 span = 365 * 24
 step = 0.1
 date_col = "datetime"
@@ -58,9 +60,6 @@ df_st.env_var = fill("ST", nrow(df_st))
 df_sm.env_var = fill("SM", nrow(df_sm))
 df_env = vcat(df_at, df_st, df_sm)
 
-last_date_west = "23.07.2023 11:00"
-last_date_east = "22.07.2023 11:00"
-
 # check environmental data
 check_environmental_input(df_at, "datetime", "15.09.2009 01:00", "23.07.2023 11:00")
 check_environmental_input(df_st, "datetime", "15.09.2009 01:00", "23.07.2023 11:00")
@@ -71,9 +70,13 @@ df_dna = read_csv("./data/clr_sorted_DNA_OTU_PLSR_final.csv")
 df_cdna = read_csv("./data/clr_sorted_cDNA_OTU_PLSR_final.csv")
 cdna = false
 
+# plsr
 results = Dict()
 for otu_id in otu_ids
     results[otu_id] = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies)
 end
+
+# postprocessing
+process_results(results, span, step, season, "horizontal")
 
 end # module OTUanalysis
