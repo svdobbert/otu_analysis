@@ -35,7 +35,7 @@ include("postprocessing.jl")
 
 # define parameters
 env_var = "ST"
-otu_ids = ["OTU0001", "OTU0002", "OTU0003"]
+otu_ids = ["OTU0001"]
 span = 365 * 24
 step = 0.1
 date_col = "datetime"
@@ -49,6 +49,7 @@ plot_pdf = true
 plot_png = true
 countRange = false
 saveFrequencies = true
+plot_type = "all" # can be "all", "points_raw", "points_smoothed", "points_smoothed_with_sig", "line", or "line_sig"
 
 # load environmental data
 df_at = read_csv("./data/AT15_Data_2009_2023_fixed.csv")
@@ -73,7 +74,7 @@ cdna = false
 # plsr
 results = Dict()
 for otu_id in otu_ids
-    results[otu_id] = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies)
+    results[otu_id] = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, plot_type)
 end
 
 # postprocessing
