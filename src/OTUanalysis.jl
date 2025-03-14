@@ -35,7 +35,7 @@ include("postprocessing.jl")
 
 # define parameters
 env_var = "ST"
-otu_ids = ["OTU0001"]
+otu_ids = ["OTU$(lpad(i, 4, '0'))" for i in 1:1100]
 span = 365 * 24
 step = 0.1
 date_col = "datetime"
