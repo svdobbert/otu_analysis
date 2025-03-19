@@ -35,9 +35,10 @@ include("postprocessing.jl")
 
 # define parameters
 env_var = "ST"
-otu_ids = ["OTU0001"]
+otu_ids = ["OTU1110"]
 span = 365 * 24
 step = 0.1
+n_folds = 50000
 date_col = "datetime"
 id_col = "OTU_ID"
 sampling_date_west = "23.07.2023 11:00"
@@ -67,17 +68,17 @@ check_environmental_input(df_st, "datetime", "15.09.2009 01:00", "23.07.2023 11:
 check_environmental_input(df_sm, "datetime", "15.09.2009 01:00", "23.07.2023 11:00")
 
 # load otu data
-df_dna = read_csv("./data/clr_sorted_DNA_OTU_PLSR_final.csv")
-df_cdna = read_csv("./data/clr_sorted_cDNA_OTU_PLSR_final.csv")
+df_dna = read_csv("./data/19032025_DNA_1_clr_sorted.csv")
+df_cdna = read_csv("./data/19032025_cDNA_1_clr_sorted.csv")
 cdna = false
 
 # plsr
 results = Dict()
 for otu_id in otu_ids
-    results[otu_id] = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, plot_type)
+    results[otu_id] = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, n_folds, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, plot_type)
 end
 
 # postprocessing
-process_results(results, span, step, season, "horizontal")
+process_results(results, span, step, season, "vertical")
 
 end # module OTUanalysis

@@ -3,7 +3,7 @@ function remove_constant_columns(df::DataFrame)
     return df[:, non_constant_columns]
 end
 
-function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, plot_pdf::Bool=false, plot_png::Bool=false, countRange::Bool=true, saveFrequencies::Bool=true, plot_type::String="all")
+function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, n_folds::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, plot_pdf::Bool=false, plot_png::Bool=false, countRange::Bool=true, saveFrequencies::Bool=true, plot_type::String="all")
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe.
 
@@ -14,6 +14,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     - otu_id::String: ID for the OTUs.
     - span::Number: span (in hours) before the sampling date to which the DataFrame should be trunctuated.  
     - step:: Number: step by which the environmental data should be counted.   
+    - n_folds::Number: Number of folds for cross-validation.
     - date_col::String: Name of the column containing the datetime.
     - id_col::String: Name of the column containing the otu ids.
     - sampling_date_west::String: Date at which the samples were taken in the west.
@@ -37,6 +38,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
 
     X = remove_constant_columns(df_cleaned[:, Not(:values)])
     env_values = names(X)
+    x = parse.(Float64, env_values)
     X = Matrix{Float64}(X)
     y = convert(Vector{Float64}, df_cleaned.values)
 
@@ -60,7 +62,6 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     y[isnan.(y).|isinf.(y)] .= 0
 
     # Cross Validation parameters
-    n_folds = 100000
     n_samples = size(X, 1)
     n_permutations = 10000  # Number of permutations
     n_features = size(X, 2)
@@ -125,6 +126,11 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
 
         # Get the sign of the regression coefficients 
         coefficient_signs = sign.(B[:, 1])
+        max_coef = maximum(abs.(B[:, 1]))
+        min_coef = minimum(abs.(B[:, 1]))
+
+        println("Max coefficient: ", max_coef)
+        println("Min coefficient: ", min_coef)
 
         # Create a vector for all features (matching original feature set)
         selectivity_ratios_full = fill(NaN, n_features_original)
@@ -153,9 +159,12 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     println("Number of NaN values in the selectivity ratios matrix: ", count(isnan, selectivity_ratios_matrix))
     selectivity_ratios_df = DataFrame(selectivity_ratios_matrix, :auto)
     selectivity_ratios_mean = [mean(skipmissing(row)) for row in eachrow(selectivity_ratios_df)]
+    selectivity_ratios_median = [median(skipmissing(row)) for row in eachrow(selectivity_ratios_df)]
 
     coefficient_signs_matrix = hcat(coefficient_signs_all_folds...)
-    coefficient_signs_mean = sign.(median(coefficient_signs_matrix, dims=2))
+    coefficient_signs_mean = sign.(mean(coefficient_signs_matrix, dims=2))
+    model = loess(x, vec(coefficient_signs_mean), span=0.1)
+    coefficient_signs_mean_smooth = Loess.predict(model, x)
 
     # Step 2: Permutation test for p-values
     permuted_ratios_all = zeros(n_features, n_permutations)
@@ -197,9 +206,8 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     # Compute p-values
     p_values = [mean(abs.(permuted_ratios_all[i, :]) .>= abs(selectivity_ratios_mean[i])) for i in 1:n_features]
 
-    selectivity_ratios_with_sign = vec(coefficient_signs_mean .* selectivity_ratios_mean)
+    selectivity_ratios_with_sign = vec(coefficient_signs_mean_smooth .* selectivity_ratios_median)
 
-    x = parse.(Float64, env_values)
     model = loess(x, selectivity_ratios_with_sign, span=smooth)
     selectivity_ratios_smooth = Loess.predict(model, x)
 

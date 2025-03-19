@@ -47,6 +47,6 @@ function process_results(results::Dict, span::Number, step::Number, season::Stri
         df_merged .= coalesce.(df_merged, NaN)
     end
 
-    formatted_time = Dates.format(now(), "yyyy-mm-dd_HH:MM")
+    formatted_time = Dates.format(now(), "yyyy-mm-dd_HH_MM")
     CSV.write("./$(formatted_time)_$(env_var)_$(span)_$(season).csv", df_merged)
 end
