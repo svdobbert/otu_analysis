@@ -53,14 +53,6 @@ function plot_selectivity_ratio(df::DataFrame, cdna::Bool, otu_id::String, span:
             layer(
                 df_clean,
                 x=:x,
-                y=:explained_var_smooth_sig,
-                color=[colorant"black"],
-                Geom.line,
-                Theme(line_width=2pt)
-            ),
-            layer(
-                df_clean,
-                x=:x,
                 y=:explained_var_smooth,
                 color=[colorant"grey"],
                 Geom.line,
