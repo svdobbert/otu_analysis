@@ -79,6 +79,6 @@ for otu_id in otu_ids
 end
 
 # postprocessing
-process_results(results, span, step, season, "vertical")
+process_results(results, env_var, span, season, "vertical")
 
 end # module OTUanalysis

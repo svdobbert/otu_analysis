@@ -1,11 +1,11 @@
-function process_results(results::Dict, span::Number, step::Number, season::String, sort::String=vertical)
+function process_results(results::Dict, env_var::String, span::Number, season::String, sort::String=vertical)
     """
     Restructures the results of the previous analysis and saves the to a csv file
 
     Parameters:
     - results::Dict: The results of the previous analysis.
+    - env_var::String: environmental variable to process (either "AT", "ST", "SM")
     - span::Number: span (in hours) before the sampling date to which the DataFrame should be trunctuated.  
-    - step::Number: step by which the environmental data should be counted.   
     - season::String: The meteorolocical season which should be included. Can also be "all" to select all seasons.
     - sort::String: The sorting of the data. Can be either "vertical" or "horizontal".
 
