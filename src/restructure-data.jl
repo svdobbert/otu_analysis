@@ -22,6 +22,7 @@ function trunctuate_df(df::DataFrame, date_col::String, sampling_date::String, s
     return filtered_df
 end
 
+
 function is_in_season(date::DateTime, season::String)
     """
     Calculates the meteorolocical season from dates.
@@ -41,6 +42,7 @@ function is_in_season(date::DateTime, season::String)
            (season == "autumn" && month in (9, 10, 11)) ||
            (season == "all" && month in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
 end
+
 
 function count_frequencies_range(df::DataFrame, date_col::String, range_values)
     """
@@ -75,6 +77,7 @@ function count_frequencies_range(df::DataFrame, date_col::String, range_values)
     return df_counts
 end
 
+
 function count_frequencies(df::DataFrame, date_col::String, range_values)
     """
     Counts frequencies above/below specific values in a range
@@ -105,6 +108,70 @@ function count_frequencies(df::DataFrame, date_col::String, range_values)
     df_counts.position = names(select(df, Not(Symbol(date_col))))
 
     return df_counts
+end
+
+
+function prepare_env_data(df::DataFrame, span::Number, date_col::String, sampling_date_west::String, sampling_date_east::String, season::String="all")
+    """
+    Prepares the DataFrame, trunctuating data with different sampling dates seperately to a specific time span before the sampling date.
+
+    Parameters:
+    - df::DataFrame: DataFrame containing environmental data
+    - span::Number: span (in hours) before the sampling date to which the DataFrame should be trunctuated.  
+    - date_col::String: Name of the column containing the datetime.
+    - sampling_date_west::String: Date at which the samples were taken in the west.
+    - sampling_date_east::String: Date at which the samples were taken in the west.
+    - season::String: The meteorolocical season which should be included. Can also be "all" to select all seasons.
+
+    Returns:
+    - DataFrame: The processed DataFrame.
+    """
+    date_format = "dd.mm.yyyy HH:MM"
+
+    west_columns = filter(c -> occursin("W", string(c)), names(df))
+    east_columns = filter(c -> occursin("E", string(c)), names(df))
+
+    df_west = df[:, west_columns]
+    df_west[!, Symbol(date_col)] = DateTime.(df[!, Symbol(date_col)], date_format)
+
+    df_east = df[:, east_columns]
+    df_east[!, Symbol(date_col)] = DateTime.(df[!, Symbol(date_col)], date_format)
+
+    df_west_trunctuated = trunctuate_df(df_west, date_col, sampling_date_west, span)
+    df_east_trunctuated = trunctuate_df(df_east, date_col, sampling_date_east, span)
+
+    df_west_trunctuated = filter(row -> is_in_season(row[Symbol(date_col)], season), df_west_trunctuated)
+    df_east_trunctuated = filter(row -> is_in_season(row[Symbol(date_col)], season), df_east_trunctuated)
+
+    if nrow(df_west_trunctuated) < 1 || nrow(df_east_trunctuated) < 1
+        throw(ErrorException("There are now hours within the selected span and season: $season"))
+    end
+
+    df_east_trunctuated = select(df_east_trunctuated, Not(Symbol(date_col)))
+    df_trunctuated = hcat(df_west_trunctuated, df_east_trunctuated)
+
+    return df_trunctuated
+end
+
+function normalize_otu_data(df::DataFrame, id_col::String)
+    """
+    Normalizes and cleans the a DataFrame
+
+    Parameters:
+    - df::DataFrame: DataFrame containing otu data
+    - id_col::String: Name of the column containing the otu ids.
+    
+    Returns:
+    - DataFrame: The processed DataFrame.
+    """
+Y = select(df, Not(Symbol(id_col)))
+Y = Matrix{Float64}(Y)
+std_Y = std(Y, dims=1)
+Y = (Y .- mean(Y, dims=1)) ./ std_Y
+df_Y = DataFrame(Y, :auto)
+df_Y[!, Symbol(id_col)] = df[!, Symbol(id_col)]
+
+return df_Y
 end
 
 function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", countRange::Bool=true, saveFrequencies::Bool=true)
@@ -147,26 +214,17 @@ function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::
 
     @info "Environmental data ranging from $min_val to $max_val."
 
-    date_format = "dd.mm.yyyy HH:MM"
+    df_trunctuated = prepare_env_data(df, span, date_col, sampling_date_west, sampling_date_east, season)
 
     west_columns = filter(c -> occursin("W", string(c)), names(df))
     east_columns = filter(c -> occursin("E", string(c)), names(df))
 
-    df_west = df[:, west_columns]
-    df_west[!, Symbol(date_col)] = DateTime.(df[!, Symbol(date_col)], date_format)
+    date_format = "dd.mm.yyyy HH:MM"
 
-    df_east = df[:, east_columns]
-    df_east[!, Symbol(date_col)] = DateTime.(df[!, Symbol(date_col)], date_format)
-
-    df_west_trunctuated = trunctuate_df(df_west, date_col, sampling_date_west, span)
-    df_east_trunctuated = trunctuate_df(df_east, date_col, sampling_date_east, span)
-
-    df_west_trunctuated = filter(row -> is_in_season(row[Symbol(date_col)], season), df_west_trunctuated)
-    df_east_trunctuated = filter(row -> is_in_season(row[Symbol(date_col)], season), df_east_trunctuated)
-
-    if nrow(df_west_trunctuated) < 1 || nrow(df_east_trunctuated) < 1
-        throw(ErrorException("There are now hours within the selected span and season: $season"))
-    end
+    df_east_trunctuated = df_trunctuated[:, east_columns]
+    df_east_trunctuated[!, Symbol(date_col)] = df_trunctuated[!, Symbol(date_col)]
+    df_west_trunctuated = df_trunctuated[:, west_columns]
+    df_west_trunctuated[!, Symbol(date_col)] = df_trunctuated[!, Symbol(date_col)]
 
     if countRange
         df_east_frequencies = count_frequencies_range(df_east_trunctuated, date_col, range_values)
@@ -179,12 +237,7 @@ function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::
     df_frequencies = vcat(df_west_frequencies, df_east_frequencies)
 
     # normalize OTU-data
-    Y = select(df_otu, Not(Symbol(id_col)))
-    Y = Matrix{Float64}(Y)
-    std_Y = std(Y, dims=1)
-    Y = (Y .- mean(Y, dims=1)) ./ std_Y
-    df_Y = DataFrame(Y, :auto)
-    df_Y[!, Symbol(id_col)] = df_otu[!, Symbol(id_col)]
+    df_Y = normalize_otu_data(df_otu, id_col)
 
     selected_row = df_Y[df_Y[!, Symbol(id_col)].==otu_id, :]
 
