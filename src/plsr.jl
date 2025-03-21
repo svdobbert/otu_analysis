@@ -3,7 +3,7 @@ function remove_constant_columns(df::DataFrame)
     return df[:, non_constant_columns]
 end
 
-function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, n_folds::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, plot_pdf::Bool=false, plot_png::Bool=false, countRange::Bool=true, saveFrequencies::Bool=true, plot_type::String="all")
+function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, n_folds::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, plot_pdf::Bool=false, plot_png::Bool=false, countRange::Bool=true, saveFrequencies::Bool=true, plot_type::String="all", sig_niveau::Number=0.1)
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe.
 
@@ -28,6 +28,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     - countRange::Bool: Should the frequencies be counted as range around the values or above/below the values.
     - saveFrequenciese::Bool: Should the frequencies table be safed.
     - plot_type::String: Optional, specifies the type of plot will be generated. Can be "all", "points_raw", "points_smoothed", "points_smoothed_with_sig" "line", "line_sig"
+    - sig_niveau::Number: Significance level for the selectivity ratio. Default is 0.1.
 
     Returns:
     - DataFrame: DataFrame containing selectivity ratios (sel_ratio) with significance (significance), p-value (pval), environmental value (x), and smoothed selectivity ratio for plotting (sel_ratio_smooth).
@@ -215,7 +216,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     plsr_result = DataFrame(
         sel_ratio=vec(selectivity_ratios_with_sign),
         p_val=p_values,
-        significance=p_values .< 0.1,
+        significance=p_values .< sig_niveau,
         x=x,
         sel_ratio_smooth=selectivity_ratios_smooth
     )

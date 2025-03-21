@@ -24,6 +24,7 @@ using CSV
 using Loess
 using Cairo
 using Dates
+using DecisionTree
 
 include("constants.jl")
 include("load-data.jl")
@@ -32,25 +33,36 @@ include("restructure-data.jl")
 include("plot.jl")
 include("plsr.jl")
 include("postprocessing.jl")
+include("random-forest.jl")
 
 # define parameters
-env_var = "ST"
-otu_ids = ["OTU$(lpad(i, 4, '0'))" for i in 1:1100]
-span = 365 * 24
-step = 0.1
-n_folds = 50000
-date_col = "datetime"
-id_col = "OTU_ID"
-sampling_date_west = "23.07.2023 11:00"
-sampling_date_east = "22.07.2023 11:00"
-season = "all"
-smooth = 0.15
-plot = true
-plot_pdf = true
-plot_png = true
-countRange = false
-saveFrequencies = true
-plot_type = "all" # can be "all", "points_raw", "points_smoothed", "points_smoothed_with_sig", "line", or "line_sig"
+env_var = "ST" # The environmental variable to be used for the analysis. Can be "AT", "ST", or "SM".
+otu_ids = ["OTU$(lpad(i, 4, '0'))" for i in 1:1] # The OTU IDs to be used for the analysis.
+span = 30 * 24 # The time span (in hours) before the sampling date which will be analysed.
+season = "all" # The meteorological season which should be included. Can also be "all" to select all seasons.
+cdna = false # If true, the data is cDNA.
+
+step = 0.1 # The step size for the selectivity ratio calculation.
+n_folds = 50000 # Number of folds for cross-validation.
+sig_niveau = 0.05 # The significance level for the selectivity ratio.
+smooth = 0.15 # The smoothing parameter for the loess smoothing.
+countRange = false # If true, the count range is calculated.
+
+date_col = "datetime" # The name of the column containing the datetime.
+id_col = "OTU_ID" # The name of the column containing the OTU IDs.
+sampling_date_west = "23.07.2023 11:00" # The date at which the samples were taken in the western study region.
+sampling_date_east = "22.07.2023 11:00" # The date at which the samples were taken in the eastern study region.
+
+plot = true # If true, plots are generated.
+plot_pdf = true # If true, plots are saved as pdf.
+plot_png = true # If true, plots are saved as png.
+
+saveFrequencies = true # If true, the frequencies (input for PLSR model) are saved.
+plot_type = "all" # Can be "all", "points_raw", "points_smoothed", "points_smoothed_with_sig", "line", or "line_sig".
+table_form = "vertical" # The form of the output table (.csv). Can be "vertical" or "horizontal".
+
+random_forest = true # If true, a random forest model is used to calculate feature importance.
+group_by = "month" # The aggregation for the environmental variables in the random forest model. Can be "month", "year", or "all".
 
 # load environmental data
 df_at = read_csv("./data/AT15_Data_2009_2023_fixed.csv")
@@ -68,17 +80,22 @@ check_environmental_input(df_st, "datetime", "15.09.2009 01:00", "23.07.2023 11:
 check_environmental_input(df_sm, "datetime", "15.09.2009 01:00", "23.07.2023 11:00")
 
 # load otu data
-df_dna = read_csv("./data/19032025_DNA_1_clr_sorted.csv")
-df_cdna = read_csv("./data/19032025_cDNA_1_clr_sorted.csv")
-cdna = false
+if cdna
+    df_dna = read_csv("./data/19032025_cDNA_1_clr_sorted.csv")
+else
+    df_dna = read_csv("./data/19032025_DNA_1_clr_sorted.csv")
+end
 
 # plsr
 results = Dict()
 for otu_id in otu_ids
-    results[otu_id] = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, n_folds, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, plot_type)
+    results[otu_id] = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, n_folds, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, plot_type, sig_niveau)
+    if random_forest
+        random_forest_importance(df_env, df_dna, cdna, otu_id, span, date_col, id_col, sampling_date_west, sampling_date_east, season, plot, plot_pdf, plot_png, group_by)
+    end
 end
 
 # postprocessing
-process_results(results, env_var, span, season, "vertical")
+process_results(results, env_var, span, season, table_form)
 
 end # module OTUanalysis
