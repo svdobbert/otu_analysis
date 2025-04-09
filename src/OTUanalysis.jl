@@ -52,6 +52,8 @@ date_col = "datetime" # The name of the column containing the datetime.
 id_col = "OTU_ID" # The name of the column containing the OTU IDs.
 sampling_date_west = "23.07.2023 11:00" # The date at which the samples were taken in the western study region.
 sampling_date_east = "22.07.2023 11:00" # The date at which the samples were taken in the eastern study region.
+start_date = "" # e.g."01.01.2022 12:00" # Oprional! The start date of the analysis. If set, span will be ignored. Format: "dd.mm.yyyy HH:MM"
+end_date = "" # e.g. "01.01.2023 12:00" # Optional! The end date of the analysis. If not set, the sampling date will be used. Format: "dd.mm.yyyy HH:MM"
 
 plot = true # If true, plots are generated.
 plot_pdf = true # If true, plots are saved as pdf.
@@ -89,9 +91,9 @@ end
 # plsr
 results = Dict()
 for otu_id in otu_ids
-    results[otu_id] = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, n_folds, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, plot_type, sig_niveau)
+    results[otu_id] = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, n_folds, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, env_var, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, plot_type, sig_niveau)
     if random_forest
-        random_forest_importance(df_env, df_dna, cdna, otu_id, span, date_col, id_col, sampling_date_west, sampling_date_east, season, plot, plot_pdf, plot_png, group_by)
+        random_forest_importance(df_env, df_dna, cdna, otu_id, span, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, season, plot, plot_pdf, plot_png, group_by)
     end
 end
 

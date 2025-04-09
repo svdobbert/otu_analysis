@@ -3,7 +3,7 @@ function remove_constant_columns(df::DataFrame)
     return df[:, non_constant_columns]
 end
 
-function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, n_folds::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, plot_pdf::Bool=false, plot_png::Bool=false, countRange::Bool=true, saveFrequencies::Bool=true, plot_type::String="all", sig_niveau::Number=0.1)
+function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, n_folds::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, start_date::String, end_date::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, plot_pdf::Bool=false, plot_png::Bool=false, countRange::Bool=true, saveFrequencies::Bool=true, plot_type::String="all", sig_niveau::Number=0.1)
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe.
 
@@ -19,6 +19,8 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     - id_col::String: Name of the column containing the otu ids.
     - sampling_date_west::String: Date at which the samples were taken in the west.
     - sampling_date_east::String: Date at which the samples were taken in the west.
+    - start_date::String: Optional, the start date of the analysis. If set, span will be ignored.
+    - end_date::String: Optional, the end date of the analysis. If not set, the sampling date will be used.
     - env_var::String: environmental variable to process (either "AT", "ST", "SM")
     - season::String: Optional, the meteorolocical season which should be included. Includes all seasons if not set.
     - smooth::Number: Optional, level of smoothing (between 0 and 1), default is 0.2.
@@ -34,7 +36,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     - DataFrame: DataFrame containing selectivity ratios (sel_ratio) with significance (significance), p-value (pval), environmental value (x), and smoothed selectivity ratio for plotting (sel_ratio_smooth).
     """
 
-    df_processed = prepare_data(df, df_otu, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, env_var, season, countRange, saveFrequencies)
+    df_processed = prepare_data(df, df_otu, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, env_var, season, countRange, saveFrequencies)
     df_cleaned = dropmissing(select(df_processed, Not(:position)))
 
     X = remove_constant_columns(df_cleaned[:, Not(:values)])

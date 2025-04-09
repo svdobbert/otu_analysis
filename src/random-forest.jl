@@ -1,5 +1,5 @@
 
-function transform_data(df::DataFrame, env_var::String, span::Number, date_col::String, sampling_date_west::String, sampling_date_east::String, group_by::String, season::String="all")
+function transform_data(df::DataFrame, env_var::String, span::Number, date_col::String, sampling_date_west::String, sampling_date_east::String, start_date::String, end_date::String, group_by::String, season::String="all")
     """
     Prepares the DataFrame, trunctuating and transforming the data
 
@@ -9,7 +9,9 @@ function transform_data(df::DataFrame, env_var::String, span::Number, date_col::
     - span::Number: span (in hours) before the sampling date to which the DataFrame should be trunctuated.  
     - date_col::String: Name of the column containing the datetime.
     - sampling_date_west::String: Date at which the samples were taken in the west.
-    - sampling_date_east::String: Date at which the samples were taken in the west.
+    - sampling_date_east::String: Date at which the samples were taken in the east.
+    - start_date::String: Optional, the start date of the analysis. If set, span will be ignored.
+    - end_date::String: Optional, the end date of the analysis. If not set, the sampling date will be used.
     - group_by::String: The grouping of the data. Can be "month", "year", or "all".
     - season::String: The meteorolocical season which should be included. Can also be "all" to select all seasons.
 
@@ -18,7 +20,7 @@ function transform_data(df::DataFrame, env_var::String, span::Number, date_col::
     """
     df = filter(row -> row[Symbol("env_var")] == env_var, df)
     df = select(df, Not(Symbol("env_var")))
-    df_trunctuated = prepare_env_data(df, span, date_col, sampling_date_west, sampling_date_east, season)
+    df_trunctuated = prepare_env_data(df, span, date_col, sampling_date_west, sampling_date_east, start_date, end_date, season)
 
     if group_by == "month"
         df_trunctuated.group = Dates.month.(df_trunctuated[!, Symbol(date_col)])
@@ -52,7 +54,7 @@ function transform_data(df::DataFrame, env_var::String, span::Number, date_col::
     return df_transposed
 end
 
-function random_forest_importance(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, season::String="all", plot=true, plot_pdf::Bool=false, plot_png::Bool=false, group_by::String="all")
+function random_forest_importance(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, start_date::String, end_date::String, season::String="all", plot=true, plot_pdf::Bool=false, plot_png::Bool=false, group_by::String="all")
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe.
 
@@ -65,7 +67,9 @@ function random_forest_importance(df_env::DataFrame, df_otu::DataFrame, cdna::Bo
     - date_col::String: Name of the column containing the datetime.
     - id_col::String: Name of the column containing the otu ids.
     - sampling_date_west::String: Date at which the samples were taken in the west.
-    - sampling_date_east::String: Date at which the samples were taken in the west.
+    - sampling_date_east::String: Date at which the samples were taken in the east.
+    - start_date::String: Optional, the start date of the analysis. If set, span will be ignored.
+    - end_date::String: Optional, the end date of the analysis. If not set, the sampling date will be used.
     - season::String: Optional, the meteorolocical season which should be included. Includes all seasons if not set.
     - plot::Bool: Otional, specifies if a plot should be returned.
     - plot_pdf::Bool: Otional, specifies if the plot should be safed as pdf
@@ -75,11 +79,11 @@ function random_forest_importance(df_env::DataFrame, df_otu::DataFrame, cdna::Bo
     Returns:
     - Feature importance as .csv and (optional) plot.
     """
-    df_at_transformed = transform_data(df_env, "AT", span, date_col, sampling_date_west, sampling_date_east, group_by, season)
+    df_at_transformed = transform_data(df_env, "AT", span, date_col, sampling_date_west, sampling_date_east, start_date, end_date, group_by, season)
     rename!(df_at_transformed, Dict(names(df_at_transformed)[i] => "AT_" * string(names(df_at_transformed)[i]) for i in 1:length(names(df_at_transformed))))
-    df_st_transformed = transform_data(df_env, "ST", span, date_col, sampling_date_west, sampling_date_east, group_by, season)
+    df_st_transformed = transform_data(df_env, "ST", span, date_col, sampling_date_west, sampling_date_east, start_date, end_date, group_by, season)
     rename!(df_st_transformed, Dict(names(df_st_transformed)[i] => "ST_" * string(names(df_st_transformed)[i]) for i in 1:length(names(df_st_transformed))))
-    df_sm_transformed = transform_data(df_env, "SM", span, date_col, sampling_date_west, sampling_date_east, group_by, season)
+    df_sm_transformed = transform_data(df_env, "SM", span, date_col, sampling_date_west, sampling_date_east, start_date, end_date, group_by, season)
     rename!(df_sm_transformed, Dict(names(df_sm_transformed)[i] => "SM_" * string(names(df_sm_transformed)[i]) for i in 1:length(names(df_sm_transformed))))
 
     df_transformed = hcat(df_at_transformed, df_st_transformed, df_sm_transformed)
