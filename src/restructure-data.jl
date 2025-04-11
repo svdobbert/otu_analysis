@@ -1,4 +1,4 @@
-function trunctuate_df(df::DataFrame, date_col::String, sampling_date::String, span::Number)
+function trunctuate_df(df::DataFrame, date_col::String, sampling_date::String, span::Number, start_date::String, end_date::String)
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe.
 
@@ -12,8 +12,33 @@ function trunctuate_df(df::DataFrame, date_col::String, sampling_date::String, s
     - DataFrame: The processed DataFrame.
     """
     date_format = "dd.mm.yyyy HH:MM"
-    end_date = DateTime(sampling_date, date_format)
-    start_date = end_date - Hour(span)
+    if end_date == ""
+        try
+            end_date = DateTime(sampling_date, date_format)
+        catch e
+            error("Error: The sampling date '$sampling_date' does not match the format '$date_format'")
+        end
+    else
+        try
+            end_date = DateTime(end_date, date_format)
+        catch e
+            error("Error: The proved end date '$end_date' does not match the format '$date_format'")
+        end
+        if end_date > DateTime(sampling_date, date_format)
+            error("Error: The provided end date '$end_date' is after the sampling date '$sampling_date'")
+        end
+    end
+
+    if start_date == ""
+        start_date = end_date - Hour(span)
+    else
+        try
+            start_date = DateTime(start_date, date_format)
+        catch e
+            println("Error: The proved start date '$start_date' does not match the format '$date_format'")
+            return nothing
+        end
+    end
 
     @info "Including values beween $start_date and $end_date."
 
@@ -111,7 +136,7 @@ function count_frequencies(df::DataFrame, date_col::String, range_values)
 end
 
 
-function prepare_env_data(df::DataFrame, span::Number, date_col::String, sampling_date_west::String, sampling_date_east::String, season::String="all")
+function prepare_env_data(df::DataFrame, span::Number, date_col::String, sampling_date_west::String, sampling_date_east::String, start_date::String, end_date::String, season::String="all")
     """
     Prepares the DataFrame, trunctuating data with different sampling dates seperately to a specific time span before the sampling date.
 
@@ -121,6 +146,8 @@ function prepare_env_data(df::DataFrame, span::Number, date_col::String, samplin
     - date_col::String: Name of the column containing the datetime.
     - sampling_date_west::String: Date at which the samples were taken in the west.
     - sampling_date_east::String: Date at which the samples were taken in the west.
+    - start_date::String: Start date of the analysis. If set, span will be ignored.
+    - end_date::String: End date of the analysis. If not set, the sampling date will be used.
     - season::String: The meteorolocical season which should be included. Can also be "all" to select all seasons.
 
     Returns:
@@ -137,14 +164,14 @@ function prepare_env_data(df::DataFrame, span::Number, date_col::String, samplin
     df_east = df[:, east_columns]
     df_east[!, Symbol(date_col)] = DateTime.(df[!, Symbol(date_col)], date_format)
 
-    df_west_trunctuated = trunctuate_df(df_west, date_col, sampling_date_west, span)
-    df_east_trunctuated = trunctuate_df(df_east, date_col, sampling_date_east, span)
+    df_west_trunctuated = trunctuate_df(df_west, date_col, sampling_date_west, span, start_date, end_date)
+    df_east_trunctuated = trunctuate_df(df_east, date_col, sampling_date_east, span, start_date, end_date)
 
     df_west_trunctuated = filter(row -> is_in_season(row[Symbol(date_col)], season), df_west_trunctuated)
     df_east_trunctuated = filter(row -> is_in_season(row[Symbol(date_col)], season), df_east_trunctuated)
 
     if nrow(df_west_trunctuated) < 1 || nrow(df_east_trunctuated) < 1
-        throw(ErrorException("There are now hours within the selected span and season: $season"))
+        throw(ErrorException("There are no hours within the selected span and season: $season"))
     end
 
     df_east_trunctuated = select(df_east_trunctuated, Not(Symbol(date_col)))
@@ -174,7 +201,7 @@ df_Y[!, Symbol(id_col)] = df[!, Symbol(id_col)]
 return df_Y
 end
 
-function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, env_var::String, season::String="all", countRange::Bool=true, saveFrequencies::Bool=true)
+function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, start_date::String, end_date::String, env_var::String, season::String="all", countRange::Bool=true, saveFrequencies::Bool=true)
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe and counts frequencies for a following plsr analysis.
 
@@ -189,6 +216,8 @@ function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::
     - id_col::String: Name of the column containing the otu ids.
     - sampling_date_west::String: Date at which the samples were taken in the west.
     - sampling_date_east::String: Date at which the samples were taken in the west.
+    - start_date::String: Start date of the analysis. If set, span will be ignored.
+    - end_date::String: End date of the analysis. If not set, the sampling date will be used.
     - env_var::String: environmental variable to process (either "AT", "ST", "SM")
     - season::String: The meteorolocical season which should be included. Can also be "all" to select all seasons.
     - countRange::Bool: Should the frequencies be counted as range around the values or above/below the values.
@@ -214,7 +243,7 @@ function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::
 
     @info "Environmental data ranging from $min_val to $max_val."
 
-    df_trunctuated = prepare_env_data(df, span, date_col, sampling_date_west, sampling_date_east, season)
+    df_trunctuated = prepare_env_data(df, span, date_col, sampling_date_west, sampling_date_east, start_date, end_date, season)
 
     west_columns = filter(c -> occursin("W", string(c)), names(df))
     east_columns = filter(c -> occursin("E", string(c)), names(df))
