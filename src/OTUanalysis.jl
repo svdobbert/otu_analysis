@@ -90,12 +90,36 @@ end
 
 # plsr
 results = Dict()
+vec_rmse = []
 for otu_id in otu_ids
-    results[otu_id] = get_selectivity_ratio(df_env, df_dna, cdna, otu_id, span, step, n_folds, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, env_var, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, plot_type, sig_niveau)
+    results[otu_id] = get_selectivity_ratio!(df_env, df_dna, cdna, otu_id, span, step, n_folds, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, env_var, vec_rmse, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, plot_type, sig_niveau)
     if random_forest
         random_forest_importance(df_env, df_dna, cdna, otu_id, span, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, season, plot, plot_pdf, plot_png, group_by)
     end
 end
+
+# save rmse
+df_rmse = DataFrame(
+    rmse=vec_rmse,
+    id=otu_ids
+)
+df_rmse.env = fill(env_var, nrow(df_rmse))
+df_rmse.season = fill(season, nrow(df_rmse))
+
+const results_path = "./rmse_results.csv"
+
+function add_rmse!(df_rmse::DataFrame)
+    if isfile(results_path)
+        df_old = CSV.read(results_path, DataFrame)
+        df_all = vcat(df_old, df_rmse)
+    else
+        df_all = df_rmse
+    end
+
+    CSV.write(results_path, df_all)
+end
+
+add_rmse!(df_rmse)
 
 # postprocessing
 process_results(results, env_var, span, season, table_form)
