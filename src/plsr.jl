@@ -3,7 +3,32 @@ function remove_constant_columns(df::DataFrame)
     return df[:, non_constant_columns]
 end
 
-function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, n_folds::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, start_date::String, end_date::String, env_var::String, season::String="all", smooth::Number=0.2, plot=true, plot_pdf::Bool=false, plot_png::Bool=false, countRange::Bool=true, saveFrequencies::Bool=true, plot_type::String="all", sig_niveau::Number=0.1)
+function get_selectivity_ratio!(
+    df::DataFrame,
+    df_otu::DataFrame,
+    cdna::Bool,
+    otu_id::String,
+    span::Number,
+    step::Number,
+    n_folds::Number,
+    date_col::String,
+    id_col::String,
+    sampling_date_west::String,
+    sampling_date_east::String,
+    start_date::String,
+    end_date::String,
+    env_var::String,
+    vec_rmse::Vector,
+    season::String="all",
+    smooth::Number=0.2,
+    plot=true,
+    plot_pdf::Bool=false,
+    plot_png::Bool=false,
+    countRange::Bool=true,
+    saveFrequencies::Bool=true,
+    plot_type::String="all",
+    sig_niveau::Number=0.1
+)
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe.
 
@@ -22,6 +47,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     - start_date::String: Optional, the start date of the analysis. If set, span will be ignored.
     - end_date::String: Optional, the end date of the analysis. If not set, the sampling date will be used.
     - env_var::String: environmental variable to process (either "AT", "ST", "SM")
+    - vec_rmse::Vector: Vector to store RMSE values.
     - season::String: Optional, the meteorolocical season which should be included. Includes all seasons if not set.
     - smooth::Number: Optional, level of smoothing (between 0 and 1), default is 0.2.
     - plot::Bool: Otional, specifies if a plot should be returned.
@@ -74,6 +100,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     # Step 1: Calculate actual selectivity ratios
     selectivity_ratios_all_folds = []
     coefficient_signs_all_folds = []
+    rmse_all_folds = []
     p_values = zeros(n_features)
 
     n_features_original = length(env_values)
@@ -104,6 +131,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
         pred = Jchemo.predict(pls_model, X_train_selected).pred
         rmse = rmsep(pred, y_train)
         nrmse = rmse / (maximum(y_train) - minimum(y_train))
+
         # println("RMSE for fold $fold_idx: ", rmsep(pred, y_train))
 
         TT = pls_model.TT
@@ -172,6 +200,13 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     model = loess(x, vec(coefficient_signs_mean), span=0.1)
     coefficient_signs_mean_smooth = Loess.predict(model, x)
 
+    rmse_matrix = hcat(rmse_all_folds...)
+    rmse_df = DataFrame(rmse_matrix, :auto)
+    rmse_mean = [mean(skipmissing(row)) for row in eachrow(rmse_df)]
+    rmse_value = rmse_mean[1]
+    push!(vec_rmse, rmse_value)
+    @info "RMSE over all folds: $rmse_value"
+
     # Step 2: Permutation test for p-values
     permuted_ratios_all = zeros(n_features, n_permutations)
 
@@ -217,7 +252,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     model = loess(x, selectivity_ratios_with_sign, span=smooth)
     selectivity_ratios_smooth = Loess.predict(model, x)
 
-  
+
     plsr_result = DataFrame(
         sel_ratio=vec(selectivity_ratios_with_sign),
         p_val=p_values,
@@ -231,7 +266,7 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
     model = loess(x, plsr_result.explained_var, span=smooth)
     plsr_result.explained_var_smooth = Loess.predict(model, x)
 
-    model_input = plsr_result[plsr_result.significance .== true, :]
+    model_input = plsr_result[plsr_result.significance.==true, :]
     model = loess(model_input.x, model_input.explained_var, span=smooth)
     plsr_result.explained_var_smooth_sig = Loess.predict(model, x)
 
