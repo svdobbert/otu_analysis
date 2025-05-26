@@ -130,6 +130,8 @@ function get_selectivity_ratio!(
 
         pred = Jchemo.predict(pls_model, X_train_selected).pred
         rmse = rmsep(pred, y_train)
+        nrmse = rmse / (maximum(y_train) - minimum(y_train))
+
         # println("RMSE for fold $fold_idx: ", rmsep(pred, y_train))
 
         TT = pls_model.TT
@@ -183,7 +185,7 @@ function get_selectivity_ratio!(
         # Store the selectivity ratios for this fold
         push!(coefficient_signs_all_folds, coefficient_signs_full)
         push!(selectivity_ratios_all_folds, selectivity_ratios_full)
-        push!(rmse_all_folds, rmse)
+        push!(rmse_all_folds, nrmse)
     end
 
     # Concatenate the selectivity ratios across folds 
