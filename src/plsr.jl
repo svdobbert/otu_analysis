@@ -102,7 +102,13 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
         pls_model = Jchemo.plssimp(X_train_selected, y_train, nlv=nlv_value, scal=true)
 
         pred = Jchemo.predict(pls_model, X_train_selected).pred
+<<<<<<< Updated upstream
         println("RMSE for fold $fold_idx: ", rmsep(pred, y_train))
+=======
+        rmse = rmsep(pred, y_train)
+        nrmse = rmse / (maximum(y_train) - minimum(y_train))
+        # println("RMSE for fold $fold_idx: ", rmsep(pred, y_train))
+>>>>>>> Stashed changes
 
         TT = pls_model.TT
         V = pls_model.V
@@ -155,6 +161,10 @@ function get_selectivity_ratio(df::DataFrame, df_otu::DataFrame, cdna::Bool, otu
         # Store the selectivity ratios for this fold
         push!(coefficient_signs_all_folds, coefficient_signs_full)
         push!(selectivity_ratios_all_folds, selectivity_ratios_full)
+<<<<<<< Updated upstream
+=======
+        push!(rmse_all_folds, nrmse)
+>>>>>>> Stashed changes
     end
 
     # Concatenate the selectivity ratios across folds 
