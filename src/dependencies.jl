@@ -30,3 +30,8 @@ Pkg.add("Loess")
 Pkg.add("Cairo")
 Pkg.add("Dates")
 Pkg.add("DecisionTree")
+Pkg.add("XLSX")                        # read/write Excel files
+Pkg.add("PlotlyJS")                    # interface to the [plotly.js] visualization library
+Pkg.add("Tar")                         # tar archive utilities
+Pkg.add("MLJMultivariateStatsInterface")
+Pkg.add("Colors")
