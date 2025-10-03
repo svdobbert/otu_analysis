@@ -182,7 +182,7 @@ end
 
 function normalize_otu_data(df::DataFrame, id_col::String)
     """
-    Normalizes and cleans the a DataFrame
+    Normalizes and cleans a DataFrame, keeping non-numeric columns unmodified.
 
     Parameters:
     - df::DataFrame: DataFrame containing otu data
@@ -191,14 +191,20 @@ function normalize_otu_data(df::DataFrame, id_col::String)
     Returns:
     - DataFrame: The processed DataFrame.
     """
-Y = select(df, Not(Symbol(id_col)))
-Y = Matrix{Float64}(Y)
-std_Y = std(Y, dims=1)
-Y = (Y .- mean(Y, dims=1)) ./ std_Y
-df_Y = DataFrame(Y, :auto)
-df_Y[!, Symbol(id_col)] = df[!, Symbol(id_col)]
+    numeric_cols = [c for c in names(df) if c != id_col && eltype(df[!, c]) <: Number]
+    non_numeric_cols = [c for c in names(df) if c != id_col && !(eltype(df[!, c]) <: Number)]
 
-return df_Y
+    Y = Matrix{Float64}(select(df, numeric_cols))
+    std_Y = std(Y, dims=1)
+    Y = (Y .- mean(Y, dims=1)) ./ std_Y
+    df_Y = DataFrame(Y, Symbol.(numeric_cols))
+
+    for c in non_numeric_cols
+        df_Y[!, Symbol(c)] = df[!, c]
+    end
+    df_Y[!, Symbol(id_col)] = df[!, Symbol(id_col)]
+
+    return df_Y
 end
 
 function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, start_date::String, end_date::String, env_var::String, season::String="all", countRange::Bool=true, saveFrequencies::Bool=true)

@@ -35,3 +35,4 @@ Pkg.add("PlotlyJS")                    # interface to the [plotly.js] visualizat
 Pkg.add("Tar")                         # tar archive utilities
 Pkg.add("MLJMultivariateStatsInterface")
 Pkg.add("Colors")
+Pkg.add("CSVFiles")      
