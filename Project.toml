@@ -1,6 +1,7 @@
 [deps]
 Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+CSVFiles = "5d742f6a-9f54-50ce-8119-2520741973ca"
 Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
 ColorSchemes = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
