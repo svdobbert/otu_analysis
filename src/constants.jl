@@ -1,2 +1,2 @@
 main_col = "#c03410"
-palette_sign = ["#ffab68", "#c03410"]
+palette_sign = ["#8fbde9", "#873a2b"]

@@ -205,6 +205,7 @@ function plot_feature_importance(rf_result::DataFrame, otu_id::String, season::S
         y=:importance,
         color=:type,
         Geom.bar(position=:dodge),
+        Scale.color_discrete_manual(palette_sign..., levels=["DNA", "cDNA"]),
         Guide.xlabel("Feature"),
         Guide.ylabel("Importance"),
         Guide.title(title),
@@ -239,4 +240,4 @@ CSV.write("./$(span)_$(season)_feature_importance.csv", rf_result)
 for otu_id in otu_ids
     plot_feature_importance(rf_result, otu_id, season, span, true, true)
 end
-end # module OTUanalysis
+end # module RandomForest

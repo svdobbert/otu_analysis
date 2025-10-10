@@ -13,8 +13,11 @@ end
 
 type = "DNA"
 time = "01d"
+reduce_env = true
+digits_T = 0
+digits_SM = 2
 
-function pca(type::String, time::String)
+function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0, digits_SM::Int=2)
     """
     Calculates a PCA and plots the results using PlotlyJS.
 
@@ -32,16 +35,10 @@ function pca(type::String, time::String)
     filename_colors = "colours_PCA_order.xlsx"
 
     df_at = DataFrame(XLSX.readtable(filename_at, "Sheet1", infer_eltypes=true))
-    df_at.x = round.(df_at.x, digits=1)
-    df_at = combine(groupby(df_at, :x), names(df_at) .=> mean; keepkeys=false)
 
     df_st = DataFrame(XLSX.readtable(filename_st, "Sheet1", infer_eltypes=true))
-    df_st.x = round.(df_st.x, digits=1)
-    df_st = combine(groupby(df_st, :x), names(df_st) .=> mean; keepkeys=false)
 
     df_sm = DataFrame(XLSX.readtable(filename_sm, "Sheet1", infer_eltypes=true))
-    df_sm.x = round.(df_sm.x, digits=2)
-    df_sm = combine(groupby(df_sm, :x), names(df_sm) .=> mean; keepkeys=false)
 
     df_at.env_var = fill("AT", nrow(df_at))
     df_st.env_var = fill("ST", nrow(df_st))
@@ -54,7 +51,13 @@ function pca(type::String, time::String)
 
     # df_clean = dropmissing(df)
     df_clean = coalesce.(df, 0)
-    features = Symbol.(string.(round.(df_clean.x, digits = 2)) .* "_" .* df_clean.env_var)
+    features = Symbol.(string.(df_clean.x) .* "_" .* df_clean.env_var)
+    rounded_features = ifelse.(
+        df_clean.env_var .== "SM",
+        round.(df_clean.x, digits=digits_SM),
+        round.(df_clean.x, digits=digits_T),
+    )
+    rounded_features = Symbol.(string.(rounded_features) .* "_" .* df_clean.env_var)
     env_var = Symbol.(df_clean.env_var)
     df_clean = df_clean[:, Not([1, ncol(df_clean)])]
     df_clean = DataFrame([[names(df_clean)]; collect.(eachrow(df_clean))], [:column; Symbol.(axes(df_clean, 1))])
@@ -76,6 +79,15 @@ function pca(type::String, time::String)
 	df_loadings = DataFrame(loadings, :auto)
 	
 	rename!(df_loadings, features)
+    unique_names = unique(rounded_features)
+    env_var_reduced = Symbol.([split(string(name), "_", limit=2)[2] for name in unique_names])
+
+    reduced_loadings = zeros(size(loadings, 1), length(unique_names))
+
+    for (i, name) in enumerate(unique_names)
+        indices = findall(==(name), rounded_names)
+        reduced_loadings[:, i] = mean(loadings[:, indices], dims=2)
+    end
 
 	CSV.write("./pca/pca_loadings_$(type)_$(time)_explained_variance.csv", df_loadings)
 
@@ -84,7 +96,13 @@ function pca(type::String, time::String)
     palette = ["#b4b4b4", "#646464", "#000000"]
     group_colors = Dict(g => color for (g, color) in zip(unique_groups, palette))
 
-    colors_env = [group_colors[env_var[i]] for i in 1:length(features)]
+    if reduce_env
+        println("PCA with reduced environmental variables")
+        colors_env = [group_colors[env_var_reduced[i]] for i in 1:length(unique_names)]
+    else
+        println("PCA with all environmental variables")
+        colors_env = [group_colors[env_var[i]] for i in 1:length(features)]
+    end
 
     df_colors = DataFrame(XLSX.readtable(filename_colors, "Tabelle1", infer_eltypes=true))
     df_colors = rightjoin(df_colors, components, on = :order)[!, [:colour]]
@@ -110,14 +128,17 @@ function pca(type::String, time::String)
         for g in groups
     ]
 
+    plot_loadings = reduce_env ? reduced_loadings : loadings
+    plot_features = reduce_env ? unique_names : features
+
     arrow_traces = [
         scatter3d(
-            x=[0, loadings[1, i]],
-            y=[0, loadings[2, i]],
-            z=[0, loadings[3, i]],
+            x=[0, plot_loadings[1, i]],
+            y=[0, plot_loadings[2, i]],
+            z=[0, plot_loadings[3, i]],
             mode="lines+text",
             line=attr(color=colors_env[i], width=4),
-            text=[nothing, features[i]],
+            text=[nothing, plot_features[i]],
             textposition="top center",
             textfont=attr(
                 size=14, 
@@ -125,7 +146,7 @@ function pca(type::String, time::String)
             name=features[i],
             showlegend=false
         )
-        for i in 1:length(features)
+        for i in 1:length(plot_features)
     ]
 
     p = PlotlyJS.plot(
@@ -144,6 +165,6 @@ function pca(type::String, time::String)
     savefig(p, "./pca/$(filename)")
 end
 
-pca(type, time)
+pca(type, time, reduce_env, digits_T, digits_SM)
 
 
