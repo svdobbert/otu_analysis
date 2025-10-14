@@ -85,7 +85,7 @@ function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0
     reduced_loadings = zeros(size(loadings, 1), length(unique_names))
 
     for (i, name) in enumerate(unique_names)
-        indices = findall(==(name), rounded_names)
+        indices = findall(==(name), rounded_features)
         reduced_loadings[:, i] = mean(loadings[:, indices], dims=2)
     end
 
@@ -166,5 +166,3 @@ function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0
 end
 
 pca(type, time, reduce_env, digits_T, digits_SM)
-
-
