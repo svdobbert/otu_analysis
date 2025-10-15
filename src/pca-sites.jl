@@ -1,8 +1,12 @@
+module PCAsites
+
 using XLSX
 using DataFrames
 using PlotlyJS          # interface to the [plotly.js] visualization library
 using Tar               # tar archive utilities
 using MLJ
+PCA_model = @load PCA pkg = "MultivariateStats" verbosity=0
+using MultivariateStats
 using CSV
 
 
@@ -47,10 +51,8 @@ function pca(type::String)
             df_clean[!, c] = parse.(Float64, df_clean[!, c])
         end
     end
-
-    # load and fit PCA
-    PCA = @load PCA pkg = "MultivariateStats"
-    mach = machine(PCA(maxoutdim=3), df_clean[!, 3:end])
+    model = PCA_model(maxoutdim=3)
+    mach = machine(model, df_clean[!, 3:end])
     fit!(mach)
 
     components = MLJ.transform(mach, df_clean[!, 3:end])
@@ -126,4 +128,4 @@ end
 
 pca(type)
 
-
+end # module PCAsites

@@ -1,10 +1,13 @@
+module PCAresults
+
 using XLSX
 using DataFrames
 using PlotlyJS          # interface to the [plotly.js] visualization library
 using Tar               # tar archive utilities
-using MLJ
 using CSV
-
+using MLJ
+PCA_model = @load PCA pkg = "MultivariateStats" verbosity=0
+using MultivariateStats
 
 function drop_cols_with_missing(df::DataFrame, threshold::Float64)
     keep = [name for name in names(df) if count(ismissing, df[!, name]) / nrow(df) ≤ threshold]
@@ -66,8 +69,8 @@ function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0
     df_clean = hcat(df_taxa[:, Symbol("Order")], df_clean)
 
     # load and fit PCA
-    PCA = @load PCA pkg = "MultivariateStats"
-    mach = machine(PCA(maxoutdim=3), df_clean[!, 3:end])
+    model = PCA_model(maxoutdim=3)
+    mach = machine(model, df_clean[!, 3:end])
     fit!(mach)
 
     components = MLJ.transform(mach, df_clean[!, 3:end])
@@ -166,3 +169,5 @@ function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0
 end
 
 pca(type, time, reduce_env, digits_T, digits_SM)
+
+end # module PCAresults
