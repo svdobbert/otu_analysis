@@ -1,3 +1,4 @@
+#!/usr/bin/env julia
 module PCAsites
 
 using XLSX
@@ -8,7 +9,9 @@ using MLJ
 PCA_model = @load PCA pkg = "MultivariateStats" verbosity=0
 using MultivariateStats
 using CSV
+using Dates
 
+include("restructure-data.jl")
 
 function drop_cols_with_missing(df::DataFrame, threshold::Float64)
     keep = [name for name in names(df) if count(ismissing, df[!, name]) / nrow(df) ≤ threshold]
@@ -16,7 +19,6 @@ function drop_cols_with_missing(df::DataFrame, threshold::Float64)
 end
 
 type = "DNA"
-time = "01d"
 
 function pca(type::String)
     """
@@ -51,6 +53,12 @@ function pca(type::String)
             df_clean[!, c] = parse.(Float64, df_clean[!, c])
         end
     end
+
+    # # Optionally normalize OTU data
+    # df_normalized = normalize_otu_data(df_clean, "OTU_ID")
+    # df_normalized = df_normalized[:, Not(:OTU_ID, :x1)]
+    # df_clean = hcat(df_clean[:, 1:2], df_normalized)
+
     model = PCA_model(maxoutdim=3)
     mach = machine(model, df_clean[!, 3:end])
     fit!(mach)
@@ -69,10 +77,10 @@ function pca(type::String)
 
     # plot PCA
     df_colors = DataFrame(XLSX.readtable(filename_colors, "Tabelle1", infer_eltypes=true))
-    df_colors = rightjoin(df_colors, components, on = :order)[!, [:colour]]
-    colors_points = df_colors.colour
-    colors_points = coalesce.(colors_points, "#cdcdbf") 
-    components.color = colors_points
+    df_colors = rightjoin(df_colors, components, on = :order)
+    df_colors.colour = coalesce.(df_colors.colour, "#cdcdbf") 
+    components = df_colors
+    components.colour[components.order .== "WPS-2"]
 
     groups = unique(components.order)
     scatter_points = [
@@ -83,7 +91,7 @@ function pca(type::String)
             mode = "markers",
             marker = attr(
                 size = 3,
-                color = components.color[components.order .== g],
+                color = first(components.colour[components.order .== g]),
                 ),
             name = string(g),
             text = components.otu_id[components.order .== g],

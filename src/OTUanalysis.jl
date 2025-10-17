@@ -23,7 +23,6 @@ using StatsBase
 using CSV
 using Loess
 using Cairo
-using Dates
 using DecisionTree
 
 include("constants.jl")
