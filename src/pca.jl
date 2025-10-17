@@ -108,10 +108,11 @@ function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0
     end
 
     df_colors = DataFrame(XLSX.readtable(filename_colors, "Tabelle1", infer_eltypes=true))
-    df_colors = rightjoin(df_colors, components, on = :order)[!, [:colour]]
-    colors_points = df_colors.colour
-    colors_points = coalesce.(colors_points, "#cdcdbf") 
-    components.color = colors_points
+    df_colors = rightjoin(df_colors, components, on = :order)
+    df_colors.colour = coalesce.(df_colors.colour, "#cdcdbf") 
+    components = df_colors
+    components.colour[components.order .== "WPS-2"]
+
 
     groups = unique(components.order)
     scatter_points = [
@@ -122,7 +123,7 @@ function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0
             mode = "markers",
             marker = attr(
                 size = 3,
-                color = components.color[components.order .== g],
+                color = components.colour[components.order .== g],
                 ),
             name = string(g),
             text = components.otu_id[components.order .== g],
