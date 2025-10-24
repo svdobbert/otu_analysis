@@ -113,7 +113,9 @@ function pca(type::String)
                 size=12, 
                 color="#646464"), 
             name=features[i],
-            showlegend=false
+            showlegend=false,
+            hoverinfo="text",
+            hovertext=plot_features[i]
         )
         for i in 1:length(features)
     ]

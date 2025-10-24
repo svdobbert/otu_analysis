@@ -148,7 +148,9 @@ function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0
                 size=14, 
                 color=colors_env[i]), 
             name=features[i],
-            showlegend=false
+            showlegend=false,
+            hoverinfo="text",
+            hovertext=plot_features[i]
         )
         for i in 1:length(plot_features)
     ]
