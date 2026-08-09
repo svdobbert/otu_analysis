@@ -6,6 +6,7 @@ end
 function get_selectivity_ratio!(
     df::DataFrame,
     df_otu::DataFrame,
+    df_raw::DataFrame,
     cdna::Bool,
     otu_id::String,
     span::Number,
@@ -26,6 +27,8 @@ function get_selectivity_ratio!(
     plot_png::Bool=false,
     countRange::Bool=true,
     saveFrequencies::Bool=true,
+    filter_positions::Bool=false,
+    filter_value::Number=0.0,
     plot_type::String="all",
     sig_niveau::Number=0.1
 )
@@ -35,6 +38,7 @@ function get_selectivity_ratio!(
     Parameters:
     - df::DataFrame: DataFrame containing environmental data
     - df_otu::DataFrame: DataFrame containing otu data
+    - df_raw::DataFrame: DataFrame containing raw otu data before clr transformation.
     - cdna::Bool: Is the data cDNA? 
     - otu_id::String: ID for the OTUs.
     - span::Number: span (in hours) before the sampling date to which the DataFrame should be trunctuated.  
@@ -55,6 +59,8 @@ function get_selectivity_ratio!(
     - plot_png::Bool: Otional, specifies if the plot should be safed as png
     - countRange::Bool: Should the frequencies be counted as range around the values or above/below the values.
     - saveFrequenciese::Bool: Should the frequencies table be safed.
+    - filter_positions::Bool: Should the environmental data be filtered by position.
+    - filter_value::Number: The value by which to filter the environmental data.
     - plot_type::String: Optional, specifies the type of plot will be generated. Can be "all", "points_raw", "points_smoothed", "points_smoothed_with_sig" "line", "line_sig"
     - sig_niveau::Number: Significance level for the selectivity ratio. Default is 0.1.
 
@@ -62,7 +68,7 @@ function get_selectivity_ratio!(
     - DataFrame: DataFrame containing selectivity ratios (sel_ratio) with significance (significance), p-value (pval), environmental value (x), and smoothed selectivity ratio for plotting (sel_ratio_smooth).
     """
 
-    df_processed = prepare_data(df, df_otu, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, env_var, season, countRange, saveFrequencies)
+    df_processed = prepare_data(df, df_otu, df_raw, cdna, otu_id, span, step, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, env_var, season, countRange, saveFrequencies, filter_positions, filter_value)
     df_cleaned = dropmissing(select(df_processed, Not(:position)))
 
     X = remove_constant_columns(df_cleaned[:, Not(:values)])
@@ -126,7 +132,7 @@ function get_selectivity_ratio!(
         end
 
         # Fit the PLS model 
-        pls_model = Jchemo.plssimp(X_train_selected, y_train, nlv=nlv_value, scal=true)
+        pls_model = Jchemo.plssimp(X_train_selected, y_train, nlv=nlv_value, scal=:std)
 
         pred = Jchemo.predict(pls_model, X_train_selected).pred
         rmse = rmsep(pred, y_train)
@@ -214,7 +220,7 @@ function get_selectivity_ratio!(
         permuted_y = shuffle(y)
 
         # Fit PLS model on permuted data
-        pls_model_perm = Jchemo.plssimp(X, permuted_y, nlv=nlv_value, scal=true)
+        pls_model_perm = Jchemo.plssimp(X, permuted_y, nlv=nlv_value, scal=:std)
 
         TT_perm = pls_model_perm.TT
         V_perm = pls_model_perm.V

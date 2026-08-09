@@ -207,7 +207,7 @@ function normalize_otu_data(df::DataFrame, id_col::String)
     return df_Y
 end
 
-function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, start_date::String, end_date::String, env_var::String, season::String="all", countRange::Bool=true, saveFrequencies::Bool=true)
+function prepare_data(df_env::DataFrame, df_otu::DataFrame, df_raw::DataFrame, cdna::Bool, otu_id::String, span::Number, step::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, start_date::String, end_date::String, env_var::String, season::String="all", countRange::Bool=true, saveFrequencies::Bool=true, filter_positions::Bool=false, filter_value::Number=0.0)
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe and counts frequencies for a following plsr analysis.
 
@@ -228,6 +228,8 @@ function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::
     - season::String: The meteorolocical season which should be included. Can also be "all" to select all seasons.
     - countRange::Bool: Should the frequencies be counted as range around the values or above/below the values.
     - saveFrequencies::Bool: Should the frequencies table be safed.
+    - filter_positions::Bool: Should the environmental data be filtered by position?
+    - filter_value::Number: The value by which to filter the environmental data.
 
     Returns:
     - DataFrame: The processed DataFrame.
@@ -271,20 +273,37 @@ function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::
 
     df_frequencies = vcat(df_west_frequencies, df_east_frequencies)
 
+    original_row = df_otu[df_otu[!, Symbol(id_col)].==otu_id, :]
+    
+    if nrow(original_row) > 1
+        throw(ErrorException("There is more than one row with the given ID: $otu_id"))
+    end
+
+    if nrow(original_row) < 1
+        error("Incorrect OTU ID. The selected OTU ID ($otu_id) is not contained in the id column.")
+    end
+
+    raw_row = df_raw[df_raw[!, Symbol(id_col)].==otu_id, :]
+    
+    if nrow(raw_row) > 1
+        throw(ErrorException("There is more than one row with the given ID in df_raw: $otu_id"))
+    end
+
+    if nrow(raw_row) < 1
+        error("Incorrect OTU ID. The selected OTU ID ($otu_id) is not contained in df_raw.")
+    end
+
+    raw_row_vector = collect(raw_row[1, Not(Symbol(id_col))])
+    raw_cleaned_vector = filter(x -> x isa Number, raw_row_vector)
+
+    @info "Raw OTU data ranging from $(minimum(raw_cleaned_vector)) to $(maximum(raw_cleaned_vector))."
+    
     # normalize OTU-data
     df_Y = normalize_otu_data(df_otu, id_col)
 
     selected_row = df_Y[df_Y[!, Symbol(id_col)].==otu_id, :]
 
-    if nrow(selected_row) > 1
-        throw(ErrorException("There is more than one row with the given ID: $otu_id"))
-    end
-
-    if nrow(selected_row) < 1
-        error("Incorrect OTU ID. The selected OTU ID ($otu_id) is not contained in the id column.")
-    end
-
-    row_vector = collect(selected_row[1, :])
+    row_vector = collect(selected_row[1, Not(Symbol(id_col))])
 
     cleaned_vector = filter(x -> x isa Number, row_vector)
 
@@ -297,6 +316,17 @@ function prepare_data(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::
     df_otu_selected.position = names(select(df_otu, Not(Symbol(id_col))))
 
     df_plsr_input = innerjoin(df_frequencies, df_otu_selected, on=:position)
+    
+    if filter_positions
+        raw_position_names = names(select(df_raw, Not(Symbol(id_col))))
+        @info "Filtering environmental data by df_raw using raw_cleaned_vector=$raw_cleaned_vector and filter_value=$filter_value"
+        valid_positions = [raw_position_names[i] for i in 1:length(raw_cleaned_vector) if raw_cleaned_vector[i] > filter_value]
+        if isempty(valid_positions)
+            @warn "No positions remain after filtering df_raw by filter_value=$filter_value. df_plsr_input will be empty."
+        end
+        df_plsr_input = filter(row -> row[:position] in valid_positions, df_plsr_input)
+        @info "Filtered environmental data by df_raw using filter_value=$filter_value. Remaining rows: $(nrow(df_plsr_input))"
+    end
 
     if cdna
         cdna_indicator = "c"

@@ -53,13 +53,14 @@ function transform_data(df::DataFrame, env_var::String, span::Number, date_col::
     return df_transposed
 end
 
-function random_forest_importance(df_env::DataFrame, df_otu::DataFrame, cdna::Bool, otu_id::String, span::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, start_date::String, end_date::String, season::String="all", plot=true, plot_pdf::Bool=false, plot_png::Bool=false, group_by::String="all")
+function random_forest_importance(df_env::DataFrame, df_otu::DataFrame, df_raw::DataFrame, cdna::Bool, otu_id::String, span::Number, date_col::String, id_col::String, sampling_date_west::String, sampling_date_east::String, start_date::String, end_date::String, season::String="all", plot=true, plot_pdf::Bool=false, plot_png::Bool=false, group_by::String="all", filter_positions::Bool=false, filter_value::Float64=0.0)
     """
     Performs a random forest regression to determine feature importance of environmental variables for a given OTU.
         
     Parameters:
     - df_env::DataFrame: DataFrame containing environmental data
     - df_otu::DataFrame: DataFrame containing otu data
+    - df_raw::DataFrame: DataFrame containing raw otu data
     - cdna::Bool: Is the data cDNA? 
     - otu_id::String: ID for the OTUs.
     - span::Number: span (in hours) before the sampling date to which the DataFrame should be trunctuated.  
@@ -74,6 +75,8 @@ function random_forest_importance(df_env::DataFrame, df_otu::DataFrame, cdna::Bo
     - plot_pdf::Bool: Otional, specifies if the plot should be safed as pdf
     - plot_png::Bool: Otional, specifies if the plot should be safed as png
     - group_by::String: The grouping of the data. Can be "month", "year", or "all".
+    - filter_positions::Bool: If true, only environmental data from positions where OTUs are present is included.
+    - filter_value::Float64: The value by which to filter the environmental data. Only positions with raw otu values greater than this will be included.
 
     Returns:
     - Feature importance as .csv and (optional) plot.
@@ -112,11 +115,33 @@ function random_forest_importance(df_env::DataFrame, df_otu::DataFrame, cdna::Bo
     df_otu_selected.position = names(select(df_otu, Not(Symbol(id_col))))
 
     df_rf_input = innerjoin(df_transformed, df_otu_selected, on=:position)
-    df_rf_input = dropmissing(select(df_rf_input, Not(:position)))
+    df_rf_input = dropmissing(df_rf_input)
 
-    X = df_rf_input[:, Not(:values)]
-    x_values = names(X)
-    X = Matrix{Float64}(X)
+    if filter_positions
+        raw_row = df_raw[df_raw[!, Symbol(id_col)].==otu_id, :]
+        if nrow(raw_row) > 1
+            throw(ErrorException("There is more than one row with the given ID in df_raw: $otu_id"))
+        end
+        if nrow(raw_row) < 1
+            error("Incorrect OTU ID. The selected OTU ID ($otu_id) is not contained in df_raw.")
+        end
+
+        raw_row_vector = collect(raw_row[1, Not(Symbol(id_col))])
+        raw_cleaned_vector = filter(x -> x isa Number, raw_row_vector)
+        raw_position_names = names(select(df_raw, Not(Symbol(id_col))))
+
+        @info "Filtering environmental data by df_raw using filter_value=$filter_value"
+        valid_positions = [raw_position_names[i] for i in 1:length(raw_cleaned_vector) if raw_cleaned_vector[i] > filter_value]
+        if isempty(valid_positions)
+            @warn "No positions remain after filtering df_raw by filter_value=$filter_value. df_rf_input will be empty."
+        end
+        df_rf_input = filter(row -> row[:position] in valid_positions, df_rf_input)
+        @info "Filtered environmental data by df_raw using filter_value=$filter_value. Remaining rows: $(nrow(df_rf_input))"
+    end
+
+    X_df = select(df_rf_input, Not([:position, :values]))
+    x_values = names(X_df)
+    X = Matrix{Float64}(X_df)
     y = convert(Vector{Float64}, df_rf_input.values)
 
     #  normalizing X and y 
