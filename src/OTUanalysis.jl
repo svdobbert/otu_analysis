@@ -37,7 +37,7 @@ include("random-forest-plsr.jl")
 
 # define parameters
 env_var = "SM" # The environmental variable to be used for the analysis. Can be "AT", "ST", or "SM".
-otu_ids = ["OTU00137"] # The OTU IDs to be used for the analysis.
+otu_ids = ["OTU$(lpad(i, 4, '0'))" for i in 1:1] # The OTU IDs to be used for the analysis.
 span = 30 * 24 # The time span (in hours) before the sampling date which will be analysed.
 season = "all" # The meteorological season which should be included. Can also be "all" to select all seasons.
 cdna = false # If true, the data is cDNA.
