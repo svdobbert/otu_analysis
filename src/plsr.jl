@@ -30,7 +30,8 @@ function get_selectivity_ratio!(
     filter_positions::Bool=false,
     filter_value::Number=0.0,
     plot_type::String="all",
-    sig_niveau::Number=0.1
+    sig_niveau::Number=0.1,
+    sign_method::Symbol=:regression
 )
     """
     Trunctuates a Dataframe with a datetime column to a specific sub-dataframe.
@@ -63,6 +64,10 @@ function get_selectivity_ratio!(
     - filter_value::Number: The value by which to filter the environmental data.
     - plot_type::String: Optional, specifies the type of plot will be generated. Can be "all", "points_raw", "points_smoothed", "points_smoothed_with_sig" "line", "line_sig"
     - sig_niveau::Number: Significance level for the selectivity ratio. Default is 0.1.
+    - sign_method::Symbol: Method for determining the sign to multiply with selectivity ratio. Options:
+        - :regression (default): Sign of regression coefficients
+        - :target_projection_loading: Sign of target projection loadings
+        - :univariate_correlation: Sign of univariate correlation with Y
 
     Returns:
     - DataFrame: DataFrame containing selectivity ratios (sel_ratio) with significance (significance), p-value (pval), environmental value (x), and smoothed selectivity ratio for plotting (sel_ratio_smooth).
@@ -162,9 +167,22 @@ function get_selectivity_ratio!(
 
         # Compute regression coefficients B
         B = pls_model.R * pls_model.C'
-
-        # Get the sign of the regression coefficients 
-        coefficient_signs = sign.(B[:, 1])
+        # Calculate signs based on selected method
+        if sign_method == :regression
+            coefficient_signs = sign.(B[:, 1])
+        elseif sign_method == :target_projection_loading
+            W = pls_model.W
+            P = pls_model.P
+            C = pls_model.C
+            target_projection_loadings = (W * P' * C)[:, 1]
+            coefficient_signs = sign.(target_projection_loadings)
+        elseif sign_method == :univariate_correlation
+            # Sign of univariate correlation with Y
+            univariate_correlations = vec(cor(X_train_selected, y_train))
+            coefficient_signs = sign.(univariate_correlations)
+        else
+            error("Unknown sign_method: $sign_method. Must be :regression, :target_projection_loading, or :univariate_correlation")
+        end
         max_coef = maximum(abs.(B[:, 1]))
         min_coef = minimum(abs.(B[:, 1]))
 
