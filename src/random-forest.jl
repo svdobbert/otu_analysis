@@ -46,7 +46,7 @@ plot_png = true # If true, plots are saved as png.
 group_by = "year" # The aggregation for the environmental variables in the random forest model. Can be "month", "year", or "all".
 
 # load environmental data
-df_at = read_csv("./data/AT15_Data_2009_2023_fixed.csv")
+df_at = read_csv("./data/AT15_Data_2009_2023.csv")
 df_st = read_csv("./data/ST15_Data_2009_2023.csv")
 df_sm = read_csv("./data/SM15_2009_2023.csv")
 
@@ -61,7 +61,7 @@ check_environmental_input(df_st, "datetime", "15.09.2009 01:00", "23.07.2023 11:
 check_environmental_input(df_sm, "datetime", "15.09.2009 01:00", "23.07.2023 11:00")
 
 df_cdna = read_csv("./data/19032025_cDNA_1_clr_sorted.csv")
-df_dna = read_csv("./data/19032025_DNA_1_clr_sorted.csv")
+df_dna = read_csv("./data/15092026_DNA_ASV_01clr_hierarchical.csv")
 
 df_cdna.type = fill("cDNA", nrow(df_cdna))
 df_dna.type = fill("DNA", nrow(df_dna))

@@ -32,25 +32,25 @@ include("restructure-data.jl")
 include("plot.jl")
 include("plsr.jl")
 include("postprocessing.jl")
-include("random-forest.jl")
+#include("random-forest.jl")
 include("random-forest-plsr.jl")
 
 # define parameters
 env_var = "SM" # The environmental variable to be used for the analysis. Can be "AT", "ST", or "SM".
-otu_ids = ["OTU$(lpad(i, 4, '0'))" for i in 1:1] # The OTU IDs to be used for the analysis.
-span = 30 * 24 # The time span (in hours) before the sampling date which will be analysed.
+otu_ids = [ "OTU00053"  "OTU00061" "OTU00077" "OTU00137" "OTU00373" "OTU00377" "OTU00381" "OTU00393" "OTU00564" "OTU00578" ]  #["OTU$(lpad(i, 4, '0'))" for i in 1:1] # The OTU IDs to be used for the analysis.
+span = 43800 # The time span (in hours) before the sampling date which will be analysed.
 season = "all" # The meteorological season which should be included. Can also be "all" to select all seasons.
 cdna = false # If true, the data is cDNA.
 filter_positions = true # If true, only environmental data from positions where OTUs are present is included.
 filter_value = 0.0 # The value by which to filter the environmental data. Only positions with raw otu values greater than this will be included.
 use_raw_reads = false # If true, the raw reads are used instead of the clr transformed data.
 
-step = 0.01 # The step size for the selectivity ratio calculation.
+step = 0.001 # The step size for the selectivity ratio calculation.
 n_folds = 50000 # Number of folds for cross-validation.
 sig_niveau = 0.05 # The significance level for the selectivity ratio.
 smooth = 0.15 # The smoothing parameter for the loess smoothing.
 countRange = false # If true, the count range is calculated.
-sign_method = :regression # The method for calculating the sign of the selectivity ratio. Can be :regression or :target_projection_loading or :univariate_correlation.
+sign_method = :target_projection_loading # The method for calculating the sign of the selectivity ratio. Can be :regression or :target_projection_loading or :univariate_correlation.
 
 date_col = "datetime" # The name of the column containing the datetime.
 id_col = "OTU_ID" # The name of the column containing the OTU IDs.
@@ -60,7 +60,7 @@ start_date = "" # e.g."01.01.2022 12:00" # Oprional! The start date of the analy
 end_date = "" # e.g. "01.01.2023 12:00" # Optional! The end date of the analysis. If not set, the sampling date will be used. Format: "dd.mm.yyyy HH:MM"
 
 plot = true # If true, plots are generated.
-plot_pdf = true # If true, plots are saved as pdf.
+plot_pdf = false # If true, plots are saved as pdf.
 plot_png = true # If true, plots are saved as png.
 
 saveFrequencies = true # If true, the frequencies (input for PLSR model) are saved.
@@ -68,10 +68,10 @@ plot_type = "all" # Can be "all", "points_raw", "points_smoothed", "points_smoot
 table_form = "vertical" # The form of the output table (.csv). Can be "vertical" or "horizontal".
 
 random_forest = true # If true, a random forest model is used to calculate feature importance.
-group_by = "month" # The aggregation for the environmental variables in the random forest model. Can be "month", "year", or "all".
+group_by = "season" # The aggregation for the environmental variables in the random forest model. Can be "month", "year", or "all".
 
 # load environmental data
-df_at = read_csv("./data/AT15_Data_2009_2023_fixed.csv")
+df_at = read_csv("./data/AT15_Data_2009_2023.csv")
 df_st = read_csv("./data/ST15_Data_2009_2023.csv")
 df_sm = read_csv("./data/SM15_2009_2023.csv")
 
@@ -89,10 +89,10 @@ check_environmental_input(df_sm, "datetime", "15.09.2009 01:00", "23.07.2023 11:
 if cdna
     df_dna = read_csv("./data/19032025_cDNA_1_clr_sorted.csv")
 else
-    df_dna = read_csv("./data/06082026_DNA_01_clr_sorted.csv")
+    df_dna = read_csv("./data/15092026_DNA_ASV_01clr_hierarchical.csv") #./data/19032025_DNA_1_clr_sorted.csv"
 end
 
-df_raw = read_csv("./data/06082026_DNA_raw_reads_sorted.csv")
+df_raw = read_csv("./data/15092026_DNA_ASV_rawAbund_hierarchical.csv")
 
 if use_raw_reads
     df_dna = df_raw
@@ -102,9 +102,24 @@ end
 results = Dict()
 vec_rmse = []
 for otu_id in otu_ids
+    try
     results[otu_id] = get_selectivity_ratio!(df_env, df_dna, df_raw, cdna, otu_id, span, step, n_folds, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, env_var, vec_rmse, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, filter_positions, filter_value, plot_type, sig_niveau, sign_method)
+catch e
+    if e isa InterruptException
+        rethrow()
+    end
+    @warn "PLSR failed for OTU $otu_id." exception=(e, catch_backtrace())
+    results[otu_id] = nothing
+end
     if random_forest
+        try 
         random_forest_importance(df_env, df_dna, df_raw, cdna, otu_id, span, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, season, plot, plot_pdf, plot_png, group_by, filter_positions, filter_value)
+    catch e 
+        if e isa InterruptException
+            rethrow()
+        end 
+        @warn "random forest failed for OTU $otu_id." exception=(e, catch_backtrace())
+    end
     end
 end
 
