@@ -35,14 +35,28 @@ function transform_data(df::DataFrame, env_var::String, span::Number, date_col::
         group = [month_map[m] for m in group]
     end
 
-    if group_by =="season"
-        df_trunctuated.group = [
-            6 <= month(d) <=9 ? "Summer" : "Winter"
-            for d in df_trunctuated[!, Symbol(date_col)]]
+    if group_by =="met_season"
+    df_trunctuated.group = [
+        begin
+            m = month(d)
+            day_d = day(d)
+
+            if (m, day_d) >= (3, 1) && (m, day_d) <= (5, 31)
+                 "Spring"
+            elseif (m, day_d) >= (6, 1) && (m, day_d) <= (8, 31)
+                "Summer"
+            elseif (m, day_d) >= (9, 1) && (m, day_d) <= (11, 30)
+                "Autumn"
+            else
+                "Winter"
+            end
+        end
+        for d in df_trunctuated[!, Symbol(date_col)]
+    ]
         df_grouped = combine(
             groupby(df_trunctuated, :group),
             names(df_trunctuated, Not(Symbol(date_col), :group)) .=> mean)
-        group = ["Summer", "Winter"]
+        group = ["Spring", "Summer", "Autumn", "Winter"]
     end 
 
     if group_by == "year"
