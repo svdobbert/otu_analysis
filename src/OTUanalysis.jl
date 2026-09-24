@@ -36,7 +36,7 @@ include("random-forest.jl")
 include("random-forest-plsr.jl")
 
 # define parameters
-env_var = "ST" # The environmental variable to be used for the analysis. Can be "AT", "ST", or "SM".
+env_var = "SM" # The environmental variable to be used for the analysis. Can be "AT", "ST", or "SM".
 otu_ids = ["OTU$(lpad(i, 4, '0'))" for i in 1:1] # The OTU IDs to be used for the analysis.
 span = 30 * 24 # The time span (in hours) before the sampling date which will be analysed.
 season = "all" # The meteorological season which should be included. Can also be "all" to select all seasons.
@@ -45,11 +45,12 @@ filter_positions = true # If true, only environmental data from positions where 
 filter_value = 0.0 # The value by which to filter the environmental data. Only positions with raw otu values greater than this will be included.
 use_raw_reads = false # If true, the raw reads are used instead of the clr transformed data.
 
-step = 0.1 # The step size for the selectivity ratio calculation.
+step = 0.01 # The step size for the selectivity ratio calculation.
 n_folds = 50000 # Number of folds for cross-validation.
 sig_niveau = 0.05 # The significance level for the selectivity ratio.
 smooth = 0.15 # The smoothing parameter for the loess smoothing.
 countRange = false # If true, the count range is calculated.
+sign_method = :regression # The method for calculating the sign of the selectivity ratio. Can be :regression or :target_projection_loading or :univariate_correlation.
 
 date_col = "datetime" # The name of the column containing the datetime.
 id_col = "OTU_ID" # The name of the column containing the OTU IDs.
@@ -101,7 +102,7 @@ end
 results = Dict()
 vec_rmse = []
 for otu_id in otu_ids
-    results[otu_id] = get_selectivity_ratio!(df_env, df_dna, df_raw, cdna, otu_id, span, step, n_folds, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, env_var, vec_rmse, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, filter_positions, filter_value, plot_type, sig_niveau)
+    results[otu_id] = get_selectivity_ratio!(df_env, df_dna, df_raw, cdna, otu_id, span, step, n_folds, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, env_var, vec_rmse, season, smooth, plot, plot_pdf, plot_png, countRange, saveFrequencies, filter_positions, filter_value, plot_type, sig_niveau, sign_method)
     if random_forest
         random_forest_importance(df_env, df_dna, df_raw, cdna, otu_id, span, date_col, id_col, sampling_date_west, sampling_date_east, start_date, end_date, season, plot, plot_pdf, plot_png, group_by, filter_positions, filter_value)
     end
