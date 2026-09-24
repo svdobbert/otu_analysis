@@ -15,7 +15,7 @@ function drop_cols_with_missing(df::DataFrame, threshold::Float64)
 end
 
 type = "DNA"
-time = "01d"
+time = "05y"
 reduce_env = true
 digits_T = 0
 digits_SM = 2
@@ -35,7 +35,7 @@ function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0
     filename_st = "data/$(type)results/$(type)_ST_$(time)_postprocessing_R_explVar.xlsx"
     filename_sm = "data/$(type)results/$(type)_SM_$(time)_postprocessing_R_explVar.xlsx"
     filename_taxa = "data/$(type)_taxa.csv"
-    filename_colors = "colours_PCA_order.xlsx"
+    filename_colors = "orders_6_colors.xlsx"
 
     df_at = DataFrame(XLSX.readtable(filename_at, "Sheet1", infer_eltypes=true))
 
@@ -80,6 +80,10 @@ function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0
     projection = fitted_params(mach).projection
     loadings = projection' .* report(mach).principalvars
 	df_loadings = DataFrame(loadings, :auto)
+    scores = MLJ.transform(mach, df_clean[!, 3:end])
+    df_scores = DataFrame(scores)
+    df_scores.OTU = components.otu_id
+   
 	
 	rename!(df_loadings, features)
     unique_names = unique(rounded_features)
@@ -93,10 +97,11 @@ function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0
     end
 
 	CSV.write("./pca/pca_loadings_$(type)_$(time)_explained_variance.csv", df_loadings)
+    CSV.write("./pca/pca_loadings_$(type)_$(time)_scores.csv", df_scores)
 
     # plot PCA
     unique_groups = unique(env_var)
-    palette = ["#b4b4b4", "#646464", "#000000"]
+    palette = ["#b4b4b4", "#646464", "#000000"]              #["#b4b4b4", "#646464", "#000000"] # AT "#c34426" ST "#c87f3f" SM "#408bbd"
     group_colors = Dict(g => color for (g, color) in zip(unique_groups, palette))
 
     if reduce_env
@@ -122,7 +127,7 @@ function pca(type::String, time::String, reduce_env::Bool=false, digits_T::Int=0
             z = components.x3[components.order .== g],
             mode = "markers",
             marker = attr(
-                size = 3,
+                size = 3,  #2 for non coloured versions, otherwise 3
                 color = components.colour[components.order .== g],
                 ),
             name = string(g),

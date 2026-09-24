@@ -33,7 +33,7 @@ include("check-data.jl")
 include("restructure-data.jl")
 include("random-forest-plsr.jl")
 
-otu_ids = ["OTU$(lpad(i, 4, '0'))" for i in 1:2] # The OTU IDs to be used for the analysis.
+otu_ids = ["OTU$(lpad(i, 4, '0'))" for i in 2:3] # The OTU IDs to be used for the analysis.
 span = 30 * 24 # The time span (in hours) before the sampling date which will be analysed.
 season = "all" # The meteorological season which should be included. Can also be "all" to select all seasons.
 date_col = "datetime" # The name of the column containing the datetime.
@@ -46,9 +46,9 @@ plot_png = true # If true, plots are saved as png.
 group_by = "year" # The aggregation for the environmental variables in the random forest model. Can be "month", "year", or "all".
 
 # load environmental data
-df_at = read_csv("./data/AT15_Data_2009_2023_fixed.csv")
+df_at = read_csv("./data/AT15_Data_2009_2023.CSV")
 df_st = read_csv("./data/ST15_Data_2009_2023.csv")
-df_sm = read_csv("./data/SM15_2009_2023.csv")
+df_sm = read_csv("./data/SM15_Data_2009_2023.CSV")
 
 df_at.env_var = fill("AT", nrow(df_at))
 df_st.env_var = fill("ST", nrow(df_st))

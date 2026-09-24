@@ -20,7 +20,7 @@ end
 
 type = "DNA"
 
-function pca(type::String)
+function pca_sites(type::String)
     """
     Calculates a PCA and plots the results using PlotlyJS.
 
@@ -134,6 +134,6 @@ function pca(type::String)
     savefig(p, "./pca/$(filename)")
 end
 
-pca(type)
+pca_sites(type)
 
 end # module PCAsites
