@@ -35,6 +35,16 @@ function transform_data(df::DataFrame, env_var::String, span::Number, date_col::
         group = [month_map[m] for m in group]
     end
 
+    if group_by =="season"
+        df_trunctuated.group = [
+            6 <= month(d) <=9 ? "Summer" : "Winter"
+            for d in df_trunctuated[!, Symbol(date_col)]]
+        df_grouped = combine(
+            groupby(df_trunctuated, :group),
+            names(df_trunctuated, Not(Symbol(date_col), :group)) .=> mean)
+        group = ["Summer", "Winter"]
+    end 
+
     if group_by == "year"
         df_trunctuated.group = Dates.year.(df_trunctuated[!, Symbol(date_col)])
         df_grouped = combine(groupby(df_trunctuated, :group), names(df_trunctuated, Not(Symbol(date_col), :group)) .=> mean)
@@ -154,7 +164,7 @@ function random_forest_importance(df_env::DataFrame, df_otu::DataFrame, df_raw::
     y = (y .- mean(y, dims=1)) ./ std_y
 
     # train random forest classifier
-    model = RandomForestRegressor(n_trees=100, max_depth=10, n_subfeatures=3)
+    model = RandomForestRegressor(n_trees=500, max_depth=10, n_subfeatures=3)
     # fit model and get feature importances
     model = DecisionTree.fit!(model, X, y)
     importances = impurity_importance(model)

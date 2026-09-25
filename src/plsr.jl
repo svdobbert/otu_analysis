@@ -171,11 +171,18 @@ function get_selectivity_ratio!(
         if sign_method == :regression
             coefficient_signs = sign.(B[:, 1])
         elseif sign_method == :target_projection_loading
-            W = pls_model.W
-            P = pls_model.P
-            C = pls_model.C
-            target_projection_loadings = (W * P' * C)[:, 1]
-            coefficient_signs = sign.(target_projection_loadings)
+          #  W = pls_model.W
+          #  P = pls_model.P
+          #  C = pls_model.C
+          #  target_projection_loadings = (W * P' * C)[:, 1]
+          #  coefficient_signs = sign.(target_projection_loadings)
+
+         b = vec(B[:,1])
+         b_norm = b/ norm(b) 
+         t_TP = X_train_selected * b_norm
+         target_projection_loadings = (X_train_selected' * t_TP)/ dot(t_TP, t_TP)
+         coefficient_signs = sign.(target_projection_loadings)
+        
         elseif sign_method == :univariate_correlation
             # Sign of univariate correlation with Y
             univariate_correlations = vec(cor(X_train_selected, y_train))
